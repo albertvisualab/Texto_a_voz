@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kokoro Pro - AI Text to Speech (Gapless Streaming)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text: #f8fafc;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: #94a3b8;
+            margin-bottom: 32px;
+            font-weight: 300;
+        }
+
+        .input-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            font-weight: 400;
+        }
+
+        textarea {
+            width: 100%;
+            height: 180px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 16px;
+            color: white;
+            font-size: 1rem;
+            resize: none;
+            transition: all 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        select,
+        input[type="range"] {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+            cursor: pointer;
+        }
+
+        select option {
+            background: #0f172a;
+            color: white;
+        }
+
+        .speed-val {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 16px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Sidebar Session List */
+        .sidebar {
+            border-left: 1px solid var(--glass-border);
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #818cf8;
+        }
+
+        .session-list {
+            overflow-y: auto;
+            max-height: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .session-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: space-between;
+        }
+
+        .session-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .session-item strong {
+            display: block;
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #f1f5f9;
+        }
+
+        .session-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-delete-session {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-delete-session:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .btn-rename-session {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-rename-session:hover {
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .btn-download-session {
+            color: #22c55e;
+            font-size: 1.1rem;
+            text-decoration: none;
+            padding: 4px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-download-session:hover {
+            background: rgba(34, 197, 94, 0.1);
+            transform: scale(1.1);
+        }
+
+        .session-item small {
+            color: #94a3b8;
+            font-size: 0.75rem;
+        }
+
+        /* Audio Player Styling */
+        .audio-container {
+            margin-top: 32px;
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+            grid-column: 1 / span 2;
+            padding-bottom: 20px;
+        }
+
+        .download-zone {
+            display: none;
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px dashed var(--primary);
+            border-radius: 12px;
+            text-align: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .btn-download {
+            background: #22c55e;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-download:hover {
+            background: #16a34a;
+            transform: scale(1.05);
+        }
+
+        audio {
+            width: 100%;
+            height: 40px;
+            filter: invert(100%) hue-rotate(180deg) brightness(1.5);
+            opacity: 0.8;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Mixer Styles */
+        .mixer-container {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .mixer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .mixer-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #818cf8;
+        }
+
+        .mixer-grid {
+            display: grid;
+            grid-template-columns: 1fr 80px 1fr;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .mixer-voice-col {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .mixer-weight-display {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .mixer-slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .preview-mini-btn {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid var(--primary);
+            color: white;
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preview-mini-btn:hover {
+            background: var(--primary);
+        }
+
+        @media (max-width: 850px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                border-left: none;
+                border-top: 1px solid var(--glass-border);
+                padding-left: 0;
+                padding-top: 20px;
+            }
+        }
+
+        /* Reading Mode / Karaoke */
+        .reading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-gradient);
+            z-index: 1000;
+            padding: 40px;
+            overflow-y: hidden;
+            flex-direction: column;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .reading-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 0 20px;
+        }
+
+        .btn-close-reading {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-close-reading:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+        }
+
+        .reading-content {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 60px;
+            overflow-y: auto;
+            font-size: 1.8rem;
+            line-height: 1.6;
+            color: #94a3b8;
+            scroll-behavior: smooth;
+            text-align: center;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .reading-content span {
+            transition: all 0.3s ease;
+            position: relative;
+            display: inline-block;
+            margin: 0 4px;
+        }
+
+        .reading-content span.highlight {
+            color: #fff;
+            text-shadow: 0 0 15px rgba(99, 102, 241, 0.8);
+            transform: scale(1.05);
+            font-weight: 600;
+        }
+
+        .reading-content span.past {
+            color: #475569;
+        }
+
+        .reading-footer {
+            margin-top: 30px;
+            padding: 0 20px;
+            text-align: center;
+        }
+
+        .reading-stats {
+            font-size: 0.9rem;
+            color: #818cf8;
+            margin-bottom: 10px;
+        }
+
+        /* Ambient light effect for reading */
+        .ambient-light {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        @media (max-width: 768px) {
+            .reading-content {
+                font-size: 1.3rem;
+                padding: 30px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <main>
+            <h1>Kokoro Pro AI</h1>
+            <p class="subtitle">Modo Lectura Fluida (Sin Pausas)</p>
+
+            <div class="input-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label style="margin-bottom: 0;">Texto o Archivo</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display: none;">
+                        <button id="upload-btn" class="btn-secondary"
+                            style="padding: 6px 12px; font-size: 0.75rem; flex: none;">
+                            📄 Subir
+                        </button>
+                    </div>
+                </div>
+                <textarea id="text" placeholder="Escribe aquí o sube un libro..."></textarea>
+            </div>
+
+            <div class="mixer-container" id="mixer-section">
+                <div class="mixer-header">
+                    <span class="mixer-title">🎚️ Mezclador de Voz (Pro)</span>
+                    <button id="preview-blend-btn" class="preview-mini-btn">Escuchar Mezcla</button>
+                </div>
+                <div class="mixer-grid">
+                    <div class="mixer-voice-col">
+                        <label>Voz A (Principal)</label>
+                        <select id="voice-a" class="voice-selector"></select>
+                        <div id="weight-a-display" class="mixer-weight-display">70%</div>
+                    </div>
+                    <div class="mixer-slider-container">
+                        <input type="range" id="mixer-ratio" min="0" max="100" value="70"
+                            style="width: 100px; transform: rotate(0deg);">
+                        <span style="font-size: 0.7rem; color: #64748b;">Balance</span>
+                    </div>
+                    <div class="mixer-voice-col">
+                        <label>Voz B (Matiz)</label>
+                        <select id="voice-b" class="voice-selector"></select>
+                        <div id="weight-b-display" class="mixer-weight-display">30%</div>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.75rem; color: #64748b; text-align: center;">
+                    Crea voces únicas mezclando los matices de dos locutores.
+                </div>
+            </div>
+
+            <div class="controls">
+                <div style="grid-column: 1 / span 2;">
+                    <label>Usar Mezcla o Voz Individual</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="checkbox" id="use-mixer" checked
+                            style="width: 20px; height: 20px; cursor: pointer;">
+                        <span style="font-size: 0.9rem; color: #cbd5e1;">Activar Mezclador Personalizado</span>
+                    </div>
+                </div>
+                <div id="single-voice-container" style="display: none;">
+                    <label>Voz Individual</label>
+                    <select id="voice"></select>
+                </div>
+                <div id="speed-container" style="grid-column: 1 / span 2;">
+                    <label>Velocidad</label>
+                    <input type="range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0">
+                    <div class="speed-val">
+                        <span>0.5x</span>
+                        <span id="speed-display">1.0x</span>
+                        <span>2.0x</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button id="generate-btn" class="btn-primary">
+                    <span class="loading-spinner" id="spinner"></span>
+                    <span id="btn-text">Comenzar Lectura Fluida</span>
+                </button>
+            </div>
+        </main>
+
+        <aside class="sidebar">
+            <h3>Lecturas Guardadas</h3>
+            <div id="session-list" class="session-list">
+                <p style="font-size: 0.8rem; color: #475569;">Cargando sesiones...</p>
+            </div>
+        </aside>
+
+        <div class="audio-container" id="audio-container">
+            <div id="status-bar" style="margin-bottom: 4px; font-size: 0.85rem; color: #818cf8; font-weight: 300;">
+            </div>
+            <div id="buffer-status" style="margin-bottom: 12px; font-size: 0.75rem; color: #94a3b8; font-weight: 300;">
+            </div>
+            <label id="player-label" style="font-weight: 600; color: #cbd5e1;"></label>
+            <div id="players-wrapper" style="position: relative; height: 40px; margin-top: 8px;">
+                <audio id="audio-player-a" style="width: 100%; position: absolute; top:0; left:0;"></audio>
+                <audio id="audio-player-b"
+                    style="width: 100%; position: absolute; top:0; left:0; display: none;"></audio>
+            </div>
+            <div id="download-zone" class="download-zone">
+                <p style="margin-bottom: 10px; font-size: 0.9rem; color: #cbd5e1;">¡Conversión completa! Ya puedes
+                    descargar el audio completo.</p>
+                <a id="download-link" href="#" class="btn-download">
+                    📥 Descargar WAV Completo
+                </a>
+            </div>
+
+            <button id="open-reading-btn" class="btn-primary"
+                style="margin-top: 20px; width: auto; align-self: center; display: none;">
+                📖 Abrir Modo Lectura (Karaoke)
+            </button>
+        </div>
+    </div>
+
+    <!-- Modo Lectura / Karaoke -->
+    <div id="reading-overlay" class="reading-overlay">
+        <div class="ambient-light"></div>
+        <div class="reading-header">
+            <div>
+                <h2 id="reading-title" style="color: #fff; font-size: 1.5rem;">Visualizador de Lectura</h2>
+                <div id="reading-subtitle" style="color: #818cf8; font-size: 0.9rem;">Sincronización Inteligente</div>
+            </div>
+            <button id="close-reading-btn" class="btn-close-reading">Cerrar</button>
+        </div>
+        <div id="reading-content" class="reading-content">
+            <!-- El texto se cargará aquí dinámicamente -->
+        </div>
+        <div class="reading-footer">
+            <div id="reading-stats" class="reading-stats">Parte 1 de 10 - 0:00</div>
+            <div style="max-width: 600px; margin: 0 auto;">
+                <audio id="reading-player" style="width: 100%; height: 40px;"></audio>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const voiceSelect = document.getElementById('voice');
+        const generateBtn = document.getElementById('generate-btn');
+        const textInput = document.getElementById('text');
+        const speedInput = document.getElementById('speed');
+        const speedDisplay = document.getElementById('speed-display');
+        const playerA = document.getElementById('audio-player-a');
+        const playerB = document.getElementById('audio-player-b');
+        const audioContainer = document.getElementById('audio-container');
+        const spinner = document.getElementById('spinner');
+        const btnText = document.getElementById('btn-text');
+        const statusBar = document.getElementById('status-bar');
+        const bufferStatus = document.getElementById('buffer-status');
+        const playerLabel = document.getElementById('player-label');
+        const fileInput = document.getElementById('file-input');
+        const uploadBtn = document.getElementById('upload-btn');
+        const sessionList = document.getElementById('session-list');
+        const downloadZone = document.getElementById('download-zone');
+        const downloadLink = document.getElementById('download-link');
+
+        // Mixer Elements
+        const useMixerCheck = document.getElementById('use-mixer');
+        const mixerSection = document.getElementById('mixer-section');
+        const singleVoiceContainer = document.getElementById('single-voice-container');
+        const voiceA = document.getElementById('voice-a');
+        const voiceB = document.getElementById('voice-b');
+        const mixerRatio = document.getElementById('mixer-ratio');
+        const weightADisplay = document.getElementById('weight-a-display');
+        const weightBDisplay = document.getElementById('weight-b-display');
+        const previewBlendBtn = document.getElementById('preview-blend-btn');
+
+        let currentProjectId = null;
+        let totalChunks = 0;
+        let currentChunkIndex = -1;
+        let activePlayer = 'A';
+        let isSessionResumed = false; // Flag para rastrear si estamos en una sesión guardada
+        let isFullAudioMode = false; // Flag para indicar si leemos de final_output.wav
+
+        // --- VARIABLES DE KARAOKE ---
+        let karaokeMetadata = [];
+        let currentChunkMetadata = null;
+        let lastMetadataFetchIdx = -1;
+
+        // --- GESTIÓN DE BUFFER ---
+        let pregenerationIndex = 0;
+        let isPregenerating = false;
+        const BUFFER_TARGET = 15; // Intentar tener 15 chunks listos en disco (agresivo)
+        let currentWaitBufferTimeout = null;
+        let isTransitioning = false;
+        let currentPlaybackId = 0; // Token para evitar colisiones de bucles concurrentes
+
+        async function loadVoices() {
+            try {
+                const res = await fetch('/api/voices');
+                const voices = await res.json();
+                const groups = {};
+                voices.forEach(v => {
+                    if (!groups[v.group]) groups[v.group] = [];
+                    groups[v.group].push(v);
+                });
+                voiceSelect.innerHTML = '';
+                voiceA.innerHTML = '';
+                voiceB.innerHTML = '';
+
+                for (const gName in groups) {
+                    const createGroup = () => {
+                        const gp = document.createElement('optgroup');
+                        gp.label = gName;
+                        return gp;
+                    };
+
+                    const group = createGroup();
+                    const groupA = createGroup();
+                    const groupB = createGroup();
+
+                    groups[gName].forEach(v => {
+                        const createOpt = () => {
+                            const opt = document.createElement('option');
+                            opt.value = v.id;
+                            opt.textContent = v.label;
+                            opt.dataset.lang = v.lang;
+                            return opt;
+                        };
+
+                        const opt = createOpt();
+                        const optA = createOpt();
+                        const optB = createOpt();
+
+                        if (v.id === 'em_alex') opt.selected = true;
+                        if (v.id === 'ef_dora') optA.selected = true;
+                        if (v.id === 'em_alex') optB.selected = true;
+
+                        group.appendChild(opt);
+                        groupA.appendChild(optA);
+                        groupB.appendChild(optB);
+                    });
+
+                    voiceSelect.appendChild(group);
+                    voiceA.appendChild(groupA);
+                    voiceB.appendChild(groupB);
+                }
+            } catch (err) { console.error('Error cargando voces', err); }
+        }
+
+        async function loadSessions() {
+            try {
+                const res = await fetch('/api/projects');
+                const projects = await res.json();
+                sessionList.innerHTML = '';
+                if (projects.length === 0) {
+                    sessionList.innerHTML = '<p style="font-size: 0.8rem; color: #475569;">No hay sesiones.</p>';
+                }
+                projects.sort((a, b) => b.id.localeCompare(a.id)).forEach(p => {
+                    const progress = Math.round((p.completed_chunks / p.total_chunks) * 100);
+                    const readProgress = p.last_chunk !== undefined ? Math.round(((p.last_chunk + 1) / p.total_chunks) * 100) : 0;
+
+                    const item = document.createElement('div');
+                    item.className = `session-item ${currentProjectId === p.id ? 'active' : ''}`;
+                    item.onclick = () => resumeProject(p);
+
+                    let actionsHtml = '';
+                    actionsHtml += `
+                        <button class="btn-rename-session" onclick="renameSession(event, '${p.id}', '${p.name.replace(/'/g, "\\'")}')" title="Renombrar">
+                            ✏️
+                        </button>
+                    `;
+                    if (p.is_finished) {
+                        actionsHtml += `
+                            <a href="/api/projects/${p.id}/download" class="btn-download-session" 
+                                onclick="event.stopPropagation()" title="Descargar WAV completo">
+                                📥
+                            </a>
+                        `;
+                    }
+                    actionsHtml += `
+                        <button class="btn-delete-session" onclick="deleteSession(event, '${p.id}')" title="Eliminar lectura">
+                            ×
+                        </button>
+                    `;
+
+                    item.innerHTML = `
+                        <div class="session-info">
+                            <strong>${p.name}</strong>
+                            <small>${p.total_chunks} fragmentos — Gen: ${progress}% · Leído: ${readProgress}%</small>
+                        </div>
+                        <div class="session-actions">
+                            ${actionsHtml}
+                        </div>
+                    `;
+                    sessionList.appendChild(item);
+                });
+            } catch (err) { console.error('Error cargando sesiones', err); }
+        }
+
+        async function deleteSession(event, projectId) {
+            event.stopPropagation();
+            if (!confirm('¿Seguro que quieres eliminar esta lectura?')) return;
+
+            try {
+                const res = await fetch(`/api/projects/${projectId}/delete`, { method: 'DELETE' });
+                if (res.ok) {
+                    if (currentProjectId === projectId) {
+                        currentProjectId = null;
+                        audioContainer.style.display = 'none';
+                        textInput.value = '';
+                    }
+                    loadSessions();
+                } else {
+                    alert('Error al eliminar');
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function renameSession(event, projectId, oldName) {
+            event.stopPropagation();
+            const newName = prompt('Nuevo nombre para esta lectura:', oldName);
+            if (!newName || newName === oldName) return;
+
+            try {
+                const res = await fetch(`/api/projects/${projectId}/rename`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                });
+                if (res.ok) {
+                    loadSessions();
+                } else {
+                    alert('Error al renombrar');
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // Sistema de Pre-generación Agresiva
+        async function runPregenerator() {
+            if (isPregenerating || !currentProjectId) return;
+            // Si el proyecto ya está terminado o es full audio, no hace falta pregenerar más
+            if (isFullAudioMode) return;
+
+            isPregenerating = true;
+
+            try {
+                const targetId = currentProjectId;
+                // Fetch project details to get current chunk statuses
+                const resP = await fetch(`/api/projects/${targetId}`);
+                const p = await resP.json();
+
+                // Seguridad: si el usuario cambió de proyecto durante el fetch, abortar
+                if (targetId !== currentProjectId) {
+                    isPregenerating = false;
+                    return;
+                }
+
+                if (!p || !p.chunks) throw new Error('Project data not found');
+
+                // Sincronizar pregenerationIndex con la realidad si es necesario
+                // (por si el servidor terminó chunks mientras estábamos en pausa)
+                let actualCompleted = p.completed_chunks;
+                if (pregenerationIndex < actualCompleted) {
+                    pregenerationIndex = actualCompleted;
+                }
+
+                // Saltear los ya completados
+                while (pregenerationIndex < totalChunks && p.chunks[pregenerationIndex].status === 'completed') {
+                    pregenerationIndex++;
+                }
+
+                if (pregenerationIndex >= totalChunks || p.is_finished) {
+                    bufferStatus.textContent = `✓ Lectura totalmente preparada (${totalChunks} partes).`;
+                    showDownloadButton();
+                    isPregenerating = false;
+                    return;
+                }
+
+                const idx = pregenerationIndex;
+                const statusText = p.chunks[idx].status === 'error' ? 'Reintentando' : 'Preparando';
+                bufferStatus.textContent = `⚡ Buffer: ${statusText} parte ${idx + 1}/${totalChunks}...`;
+
+                const res = await fetch(`/api/projects/${currentProjectId}/chunk/${idx}/prepare`, { method: 'POST' });
+                if (res.ok) {
+                    if (targetId === currentProjectId) {
+                        pregenerationIndex++;
+                        if (idx === currentChunkIndex + 1) preloadNextAudio();
+                    }
+                }
+            } catch (err) {
+                console.error("Error en pregeneración:", err);
+                bufferStatus.textContent = "⚠️ Error de conexión en el buffer. Reintentando...";
+            }
+
+            isPregenerating = false;
+            if (currentProjectId && !isFullAudioMode) setTimeout(runPregenerator, 1500);
+        }
+
+        function preloadNextAudio() {
+            const nextIdx = currentChunkIndex + 1;
+            if (nextIdx >= totalChunks || isFullAudioMode) return;
+
+            const inactivePlayer = activePlayer === 'A' ? playerB : playerA;
+            // No cargamos si ya tiene la ruta exacta
+            const targetSrc = `${window.location.origin}/api/projects/${currentProjectId}/chunk/${nextIdx}`;
+
+            // Usar comparación exacta para evitar el bug de .includes("chunk/1") con "chunk/10"
+            const currentSrc = inactivePlayer.getAttribute('src') || '';
+            if (currentSrc !== targetSrc) {
+                console.log(`[DEBUG] Pre-cargando audio para chunk ${nextIdx}`);
+                inactivePlayer.src = targetSrc;
+                inactivePlayer.load();
+            }
+        }
+
+        async function playNextChunk() {
+            if (isTransitioning) {
+                console.warn("[DEBUG] Abortando playNextChunk: Transición en curso.");
+                return;
+            }
+
+            const nextIdx = currentChunkIndex + 1;
+            console.log(`[DEBUG] Intentando reproducir chunk: ${nextIdx} (Total: ${totalChunks})`);
+
+            if (nextIdx >= totalChunks) {
+                console.log("[DEBUG] No hay más chunks. Lectura completada.");
+                statusBar.textContent = "✓ Lectura completada.";
+                showDownloadButton();
+                return;
+            }
+
+            isTransitioning = true;
+            const currentPlayer = activePlayer === 'A' ? playerA : playerB;
+            const nextPlayer = activePlayer === 'A' ? playerB : playerA;
+
+            currentChunkIndex = nextIdx;
+
+            // Si el audio aún no está en el player (porque el pregenerador va lento), forzar carga
+            const targetSrc = `${window.location.origin}/api/projects/${currentProjectId}/chunk/${currentChunkIndex}`;
+            const currentSrc = currentPlayer.getAttribute('src') || '';
+
+            if (currentSrc !== targetSrc) {
+                console.log(`[DEBUG] Audio no pre-cargado para chunk ${currentChunkIndex}. Forzando carga.`);
+                statusBar.textContent = `⌛ Esperando audio parte ${nextIdx + 1}...`;
+                currentPlayer.src = targetSrc;
+                await currentPlayer.load();
+            }
+
+            audioContainer.style.display = 'block';
+            currentPlayer.style.display = 'block';
+            currentPlayer.controls = true;
+
+            // Asegurar que el otro player esté pausado y oculto
+            nextPlayer.pause();
+            nextPlayer.style.display = 'none';
+            nextPlayer.controls = false;
+
+            playerLabel.textContent = `🔊 Leyendo parte ${currentChunkIndex + 1} de ${totalChunks}`;
+
+            try {
+                console.log(`[DEBUG] Ejecutando play() para chunk ${currentChunkIndex}`);
+                await currentPlayer.play();
+                statusBar.textContent = "✓ Reproducción iniciada.";
+
+                // GUARDAR PROGRESO: Informar al backend que estamos en este chunk
+                fetch(`/api/projects/${currentProjectId}/last_chunk`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ last_chunk: currentChunkIndex })
+                }).catch(err => console.error("Error guardando progreso:", err));
+
+            } catch (err) {
+                statusBar.textContent = "Buffer listo. Por favor, haz clic en el botón Play para empezar.";
+                console.warn("[DEBUG] Autoplay bloqueado. Esperando clic del usuario.");
+            } finally {
+                isTransitioning = false;
+            }
+
+            // Inmediatamente pre-cargar el SIGUIENTE en el reproductor inactivo
+            preloadNextAudio();
+
+            currentPlayer.onended = (e) => {
+                // Asegurarse de que el evento viene del reproductor activo
+                const playerAtEnd = e.target;
+                const activePlayerObj = activePlayer === 'A' ? playerA : playerB;
+
+                if (playerAtEnd === activePlayerObj) {
+                    console.log(`[DEBUG] Chunk ${currentChunkIndex} finalizado. Pasando al siguiente.`);
+                    activePlayer = activePlayer === 'A' ? 'B' : 'A';
+                    playNextChunk();
+                    loadSessions();
+                } else {
+                    console.warn("[DEBUG] onended ignorado: vino de un player inactivo.");
+                }
+            };
+        }
+
+        async function initializeProject(project, isResuming) {
+            // Si ya estamos en este proyecto y está reproduciendo, no reiniciar el loop de playback
+            if (currentProjectId === project.id && isSessionResumed && !isFullAudioMode) {
+                console.log("[DEBUG] Proyecto ya activo. Solo asegurando reproducción.");
+                const currentPlayer = activePlayer === 'A' ? playerA : playerB;
+                if (currentPlayer.paused) currentPlayer.play();
+                return;
+            }
+
+            // Nuevo ID de reproducción para invalidar cualquier waitBuffer anterior
+            currentPlaybackId++;
+            const myPlaybackId = currentPlaybackId;
+            console.log(`[DEBUG] Iniciando sesión de reproducción #${myPlaybackId} para ${project.id}`);
+
+            currentProjectId = project.id;
+            totalChunks = project.total_chunks;
+            isFullAudioMode = project.is_optimized || project.is_finished;
+
+            // Reanudación inteligente: prioridad al last_chunk guardado
+            if (project.last_chunk !== undefined && project.last_chunk !== null) {
+                currentChunkIndex = project.last_chunk;
+            } else {
+                currentChunkIndex = project.completed_chunks - 1;
+            }
+
+            if (currentChunkIndex < 0) currentChunkIndex = 0;
+            if (currentChunkIndex >= totalChunks) currentChunkIndex = totalChunks - 1;
+
+            pregenerationIndex = project.completed_chunks;
+            isSessionResumed = true;
+
+            textInput.value = "Sesión recuperada: " + project.name;
+
+            audioContainer.style.display = 'block';
+            updateControlBtn(false);
+            loadSessions();
+
+            if (isFullAudioMode) {
+                statusBar.textContent = "✓ Usando audio completo optimizado.";
+                bufferStatus.textContent = "🚀 Modo de alto rendimiento activo.";
+                showDownloadButton();
+
+                // Configurar reproductor para audio completo
+                playerA.src = `/api/projects/${currentProjectId}/download`;
+                playerA.style.display = 'block';
+                playerA.controls = true;
+                playerB.style.display = 'none';
+                activePlayer = 'A';
+
+                playerLabel.textContent = `🔊 Reproduciendo audio completo`;
+
+                // Cargar metadatos consolidados inmediatamente
+                await fetchFullMetadata();
+
+                // Si estamos reanudando, intentar posicionar el audio
+                if (isResuming && karaokeMetadata && karaokeMetadata.length > 0) {
+                    // Encontrar el tiempo de inicio del chunk guardado
+                    const chunkStart = karaokeMetadata.find(m => m.chunk_id === currentChunkIndex);
+                    if (chunkStart) {
+                        playerA.currentTime = chunkStart.start_time;
+                    }
+                }
+            } else {
+                // Cancelar cualquier ciclo de buffer anterior (aunque el token ya lo invalida)
+                if (currentWaitBufferTimeout) clearTimeout(currentWaitBufferTimeout);
+
+                runPregenerator();
+                downloadZone.style.display = 'none';
+
+                // Indicar en el botón que estamos cargando
+                btnText.textContent = "Cargando Lectura...";
+                generateBtn.classList.remove('btn-primary');
+                generateBtn.classList.add('btn-secondary');
+
+                // Esperar a que el buffer tenga al menos el actual + 3 siguientes
+                statusBar.textContent = "⏳ Preparando primera parte y buffer de seguridad...";
+
+                const waitBuffer = async () => {
+                    // Token Check: si el ID ya no coincide, ignorar este bucle
+                    if (currentProjectId !== project.id || myPlaybackId !== currentPlaybackId) {
+                        console.log(`[DEBUG] waitBuffer #${myPlaybackId} abortado por cambio de sesión.`);
+                        return;
+                    }
+
+                    // Ajustar currentChunkIndex para la lógica de streaming si venimos de reanudación
+                    // currentChunkIndex debe ser el anterior al que queremos reproducir para playNextChunk
+                    let streamingTargetIndex = currentChunkIndex - 1;
+                    if (streamingTargetIndex < -1) streamingTargetIndex = -1;
+
+                    const targetBuffer = Math.min(totalChunks, currentChunkIndex + 3);
+                    const isReady = pregenerationIndex >= targetBuffer;
+
+                    if (isReady) {
+                        console.log(`[DEBUG] waitBuffer #${myPlaybackId} listo (${pregenerationIndex}/${targetBuffer}). Iniciando streaming desde ${streamingTargetIndex + 1}.`);
+                        currentChunkIndex = streamingTargetIndex;
+                        playNextChunk();
+                    } else {
+                        if (pregenerationIndex === 0) {
+                            statusBar.textContent = "⏳ Generando fragmento inicial (calidad ultra-pro)...";
+                        } else {
+                            statusBar.textContent = `⏳ Llenando buffer: ${pregenerationIndex}/${targetBuffer} listos...`;
+                        }
+                        currentWaitBufferTimeout = setTimeout(waitBuffer, 1000);
+                    }
+                };
+                waitBuffer();
+            }
+        }
+
+        async function resumeProject(project) {
+            // DESBLOQUEO: Primar los reproductores con el gesto del click
+            playerA.play().then(() => playerA.pause()).catch(() => { });
+            playerB.play().then(() => playerB.pause()).catch(() => { });
+
+            initializeProject(project, true);
+        }
+
+        function showDownloadButton() {
+            downloadLink.href = `/api/projects/${currentProjectId}/download`;
+            downloadZone.style.display = 'block';
+        }
+
+        function updateControlBtn(isPlaying) {
+            generateBtn.disabled = false;
+            if (isPlaying) {
+                btnText.textContent = "Detener Lectura";
+                generateBtn.classList.remove('btn-primary');
+                generateBtn.classList.add('btn-secondary');
+            } else {
+                btnText.textContent = "Continuar Lectura";
+                generateBtn.classList.remove('btn-secondary');
+                generateBtn.classList.add('btn-primary');
+            }
+        }
+
+        // Sync button states with players
+        [playerA, playerB].forEach(p => {
+            p.addEventListener('play', () => updateControlBtn(true));
+            p.addEventListener('pause', () => updateControlBtn(false));
+            p.addEventListener('ended', () => {
+                if (currentChunkIndex >= totalChunks - 1) updateControlBtn(false);
+            });
+        });
+
+        // --- EVENTOS DEL MEZCLADOR ---
+        useMixerCheck.onchange = () => {
+            mixerSection.style.display = useMixerCheck.checked ? 'block' : 'none';
+            singleVoiceContainer.style.display = useMixerCheck.checked ? 'none' : 'block';
+        };
+
+        mixerRatio.oninput = () => {
+            const val = mixerRatio.value;
+            weightADisplay.textContent = `${val}%`;
+            weightBDisplay.textContent = `${100 - val}%`;
+        };
+
+        previewBlendBtn.onclick = async () => {
+            const text = "Hola, esta es una prueba de mi voz personalizada.";
+            const weightA = mixerRatio.value / 100;
+            const weightB = (100 - mixerRatio.value) / 100;
+            const voiceSpec = `${voiceA.value}:${weightA.toFixed(2)},${voiceB.value}:${weightB.toFixed(2)}`;
+            const lang = voiceA.options[voiceA.selectedIndex].dataset.lang;
+
+            previewBlendBtn.disabled = true;
+            previewBlendBtn.textContent = "⏳...";
+
+            try {
+                const res = await fetch('/api/speak', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        voice: voiceSpec,
+                        speed: 1.0,
+                        lang: lang
+                    })
+                });
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                audio.play();
+            } catch (err) {
+                alert('Error en previsualización');
+            } finally {
+                previewBlendBtn.disabled = false;
+                previewBlendBtn.textContent = "Escuchar Mezcla";
+            }
+        };
+
+        textInput.oninput = () => {
+            // Si el usuario cambia el texto, habilitar de nuevo la creación de proyecto
+            if (isSessionResumed && !textInput.value.startsWith("Sesión recuperada:")) {
+                isSessionResumed = false;
+                currentProjectId = null;
+                btnText.textContent = "Comenzar Lectura Fluida";
+                generateBtn.classList.remove('btn-secondary');
+                generateBtn.classList.add('btn-primary');
+            }
+        };
+
+        speedInput.oninput = () => speedDisplay.textContent = speedInput.value + 'x';
+        uploadBtn.onclick = () => fileInput.click();
+
+        fileInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file);
+            uploadBtn.textContent = '...';
+            try {
+                const res = await fetch('/api/extract', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.text) textInput.value = data.text;
+            } catch (err) { alert('Error subiendo archivo'); }
+            finally { uploadBtn.textContent = '📄 Subir'; }
+        };
+
+        generateBtn.onclick = async () => {
+            // DESBLOQUEO INMEDIATO: Capturar el gesto del usuario al instante
+            playerA.play().then(() => playerA.pause()).catch(() => { });
+            playerB.play().then(() => playerB.pause()).catch(() => { });
+
+            const text = textInput.value;
+            if (!text.trim()) return alert('Escribe algo');
+
+            // Toggle Play/Pause si es una sesión activa
+            if (currentProjectId && isSessionResumed) {
+                const currentPlayer = activePlayer === 'A' ? playerA : playerB;
+                if (currentPlayer.paused) {
+                    currentPlayer.play().catch(() => {
+                        statusBar.textContent = "Haz clic en el Play del reproductor para iniciar.";
+                    });
+                } else {
+                    currentPlayer.pause();
+                }
+                return;
+            }
+
+            // DESBLOQUEO: Primar reproductores ante el gesto de click
+            playerA.play().then(() => playerA.pause()).catch(() => { });
+            playerB.play().then(() => playerB.pause()).catch(() => { });
+
+            generateBtn.disabled = true;
+            spinner.style.display = 'block';
+            btnText.textContent = 'Inicializando...';
+
+            let voiceFinal = voiceSelect.value;
+            let langFinal = voiceSelect.options[voiceSelect.selectedIndex].dataset.lang;
+
+            if (useMixerCheck.checked) {
+                const weightA = mixerRatio.value / 100;
+                const weightB = (100 - mixerRatio.value) / 100;
+                voiceFinal = `${voiceA.value}:${weightA.toFixed(2)},${voiceB.value}:${weightB.toFixed(2)}`;
+                langFinal = voiceA.options[voiceA.selectedIndex].dataset.lang;
+            }
+
+            const payload = {
+                name: text.substring(0, 30),
+                text: text,
+                voice: voiceFinal,
+                speed: speedInput.value,
+                lang: langFinal
+            };
+
+            try {
+                const res = await fetch('/api/projects/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.project_id) {
+                    // Obtener los datos completos del proyecto para inicializar
+                    const resP = await fetch(`/api/projects/${data.project_id}`);
+                    const project = await resP.json();
+                    initializeProject(project, false);
+                }
+            } catch (err) { alert('Error al iniciar'); }
+            finally {
+                generateBtn.disabled = false;
+                spinner.style.display = 'none';
+                btnText.textContent = 'Comenzar Lectura Fluida';
+            }
+        };
+
+        const openReadingBtn = document.getElementById('open-reading-btn');
+        const readingOverlay = document.getElementById('reading-overlay');
+        const closeReadingBtn = document.getElementById('close-reading-btn');
+        const readingContent = document.getElementById('reading-content');
+        const readingTitle = document.getElementById('reading-title');
+        const readingStats = document.getElementById('reading-stats');
+        const readingCloseBtn = document.getElementById('close-reading-btn');
+
+        // Controles de reproducción en modo lectura
+        const readingPlayBtn = document.createElement('button');
+        readingPlayBtn.innerHTML = '⏸️ Pausar';
+        readingPlayBtn.className = 'btn-primary';
+        readingPlayBtn.style.width = 'auto';
+        readingPlayBtn.style.margin = '10px auto';
+        document.querySelector('.reading-footer').prepend(readingPlayBtn);
+
+        readingPlayBtn.onclick = () => {
+            const currentPlayer = activePlayer === 'A' ? playerA : playerB;
+            if (currentPlayer.paused) {
+                currentPlayer.play();
+                readingPlayBtn.innerHTML = '⏸️ Pausar';
+            } else {
+                currentPlayer.pause();
+                readingPlayBtn.innerHTML = '▶️ Reanudar';
+            }
+        };
+
+        async function fetchFullMetadata() {
+            try {
+                const res = await fetch(`/api/projects/${currentProjectId}/metadata`);
+                if (res.ok) {
+                    karaokeMetadata = await res.json();
+                    renderFullReadingContent();
+                }
+            } catch (err) { console.error("Error fetching full metadata:", err); }
+        }
+
+        async function fetchChunkMetadata(index) {
+            if (isFullAudioMode) return;
+            if (lastMetadataFetchIdx === index) return;
+            try {
+                const res = await fetch(`/api/projects/${currentProjectId}/chunk/${index}/metadata`);
+                if (res.ok) {
+                    currentChunkMetadata = await res.json();
+                    lastMetadataFetchIdx = index;
+                    renderReadingContent();
+                }
+            } catch (err) { console.error("Error fetching metadata:", err); }
+        }
+
+        function renderFullReadingContent() {
+            readingContent.innerHTML = '';
+            karaokeMetadata.forEach((item, idx) => {
+                const span = document.createElement('span');
+                span.id = `karaoke-item-${idx}`;
+                span.textContent = item.text;
+                readingContent.appendChild(span);
+            });
+        }
+
+        function renderReadingContent() {
+            if (!currentChunkMetadata) return;
+            readingContent.innerHTML = '';
+            currentChunkMetadata.forEach((item, idx) => {
+                const span = document.createElement('span');
+                span.id = `sub-chunk-${idx}`;
+                span.textContent = item.text;
+                readingContent.appendChild(span);
+            });
+        }
+
+        function updateKaraokeHighlight(currentTime) {
+            if (isFullAudioMode) {
+                if (!karaokeMetadata || !karaokeMetadata.length) return;
+
+                let activeIdx = -1;
+                for (let i = 0; i < karaokeMetadata.length; i++) {
+                    const item = karaokeMetadata[i];
+                    if (currentTime >= item.start_time && currentTime < item.start_time + item.duration) {
+                        activeIdx = i;
+                        break;
+                    }
+                }
+
+                if (activeIdx === -1 && currentTime > 0) {
+                    for (let i = karaokeMetadata.length - 1; i >= 0; i--) {
+                        if (currentTime >= karaokeMetadata[i].start_time) {
+                            activeIdx = i;
+                            break;
+                        }
+                    }
+                }
+
+                const spans = readingContent.querySelectorAll('span');
+                spans.forEach((span, idx) => {
+                    if (idx === activeIdx) {
+                        if (!span.classList.contains('highlight')) {
+                            span.className = 'highlight';
+                            span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                            const cid = karaokeMetadata[idx].chunk_id;
+                            if (cid !== currentChunkIndex) {
+                                currentChunkIndex = cid;
+                                fetch(`/api/projects/${currentProjectId}/last_chunk`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ last_chunk: cid })
+                                }).catch(() => { });
+                            }
+                        }
+                    } else if (idx < activeIdx) {
+                        span.className = 'past';
+                    } else {
+                        span.className = '';
+                    }
+                });
+
+                const totalDuration = karaokeMetadata.length > 0 ?
+                    karaokeMetadata[karaokeMetadata.length - 1].start_time + karaokeMetadata[karaokeMetadata.length - 1].duration : 0;
+
+                readingStats.textContent = `Viendo archivo completo — ${Math.round(currentTime)}s / ${Math.round(totalDuration)}s`;
+                return;
+            }
+
+            if (!currentChunkMetadata) return;
+
+            let elapsed = 0;
+            let activeIdx = -1;
+
+            for (let i = 0; i < currentChunkMetadata.length; i++) {
+                const item = currentChunkMetadata[i];
+                if (currentTime >= elapsed && currentTime < elapsed + item.duration) {
+                    activeIdx = i;
+                    break;
+                }
+                elapsed += item.duration;
+            }
+
+            // Actualizar clases
+            const spans = readingContent.querySelectorAll('span');
+            spans.forEach((span, idx) => {
+                if (idx === activeIdx) {
+                    if (!span.classList.contains('highlight')) {
+                        span.className = 'highlight';
+                        // Scroll suave si no está visible
+                        span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else if (idx < activeIdx) {
+                    span.className = 'past';
+                } else {
+                    span.className = '';
+                }
+            });
+
+            readingStats.textContent = `Parte ${currentChunkIndex + 1} de ${totalChunks} — ${Math.round(currentTime)}s / ${Math.round(elapsed + (currentChunkMetadata[activeIdx]?.duration || 0))}s`;
+        }
+
+        // Integrar con los reproductores existentes
+        [playerA, playerB].forEach(p => {
+            p.addEventListener('timeupdate', () => {
+                if (readingOverlay.style.display === 'flex') {
+                    updateKaraokeHighlight(p.currentTime);
+                }
+            });
+
+            p.addEventListener('play', () => {
+                if (currentProjectId) fetchChunkMetadata(currentChunkIndex);
+            });
+        });
+
+        openReadingBtn.onclick = () => {
+            readingOverlay.style.display = 'flex';
+            readingTitle.textContent = "Lectura: " + (document.querySelector('.session-item.active strong')?.textContent || "Documento");
+            fetchChunkMetadata(currentChunkIndex);
+        };
+
+        closeReadingBtn.onclick = () => {
+            readingOverlay.style.display = 'none';
+        };
+
+        // Mostrar botón de lectura cuando hay un proyecto activo
+        const originalInitializeProject = initializeProject;
+        initializeProject = async (project, isResuming) => {
+            await originalInitializeProject(project, isResuming);
+            openReadingBtn.style.display = 'inline-flex';
+        };
+
+        loadVoices();
+        loadSessions();
+    </script>
+</body>
+
+</html>
