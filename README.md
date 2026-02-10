@@ -1,21 +1,16 @@
-# Kokoro Pro AI TTS 🚀 (Alpha v0.1.3)
+# Kokoro Pro AI TTS 🚀 (Alpha v0.2.0)
 
 ¡Un lector de documentos inteligente, persistente, local y gratuito con Karaoke sincronizado!
 
-Esta aplicación utiliza el modelo de IA **Kokoro-82M** para convertir texto y documentos (PDF, Word, TXT) en voz humana de alta calidad. A diferencia de un simple conversor, esta versión permite **gestionar una biblioteca de lecturas** y disfrutar de una experiencia visual sincronizada.
+Esta aplicación utiliza el modelo de IA **Kokoro-82M** para convertir texto y documentos (PDF, Word, TXT) en voz humana de alta calidad. A diferencia de un simple conversor, esta versión permite **gestionar una biblioteca de lecturas**, **importar audios externos** y disfrutar de una experiencia visual sincronizada.
 
 ## ✨ Características Principales
 
-- **Modo Lectura Surround (Karaoke):** Visualiza el texto en pantalla grande con resaltado dinámico sincronizado palabra por palabra (o frase por frase) con la voz de la IA.
-- **Persistencia Robusta de Sesiones:** Guarda tus lecturas automáticamente. Gracias a un nuevo motor de gestión de estado atómico, tu progreso de lectura y conversión se sincroniza sin errores, incluso durante el procesamiento de fondo.
-- **Streaming Fluido (Alpha-Ready):** Sistema de doble reproductor optimizado que elimina las pausas entre fragmentos de texto para una lectura continua.
-- **Conversión de Fondo Continua:** El sistema ahora procesa el documento completo sin detenerse, independientemente de tu posición de lectura.
-- **Buffer de Seguridad Inteligente:** Ahora con retroalimentación en tiempo real. Configurado para arrancar rápido y mantener 0 cortes.
-- **Gestión de Lecturas Completa:**
-  - **Renombrar Sesiones:** Personaliza el título de tus lecturas (ideal para grandes bibliotecas).
-  - **Descarga Inteligente:** Descarga el audio total en WAV con el nombre personalizado que elijas.
-  - **Borrado Seguro:** Elimina proyectos y sus archivos de audio con un clic.
-- **Voces Neuronales Premium:** Incluye voces como "Em Alex" y "Ef Dora" con soporte para mezcla de voces (voice blending).
+- **Modo Lectura Surround (Karaoke) Sincronizado:** Visualiza el texto con resaltado dinámico. Ahora también compatible con audios importados.
+- **Importación de Proyectos de Audio:** Sube tus propios archivos MP3/WAV junto con su texto para convertirlos en una experiencia de Karaoke instantánea.
+- **Streaming Persistente:** Los fragmentos de audio (chunks) ya no se eliminan tras la conversión, permitiendo que la lectura fluida y el Karaoke continúen incluso después de generar el archivo completo.
+- **Persistencia de Lectura (Last Chunk):** La aplicación ahora recuerda exactamente por qué parte del libro ibas, permitiéndote retomar la lectura donde la dejaste.
+- **Motor de Karaoke Optimizado:** Estimación inteligente de tiempos basada en caracteres para importaciones ultrarrápidas.
 - **100% Privado y Local:** Funciona totalmente offline, sin costes ni límites.
 
 ## 🛠️ Requisitos
@@ -51,6 +46,13 @@ Esta aplicación utiliza el modelo de IA **Kokoro-82M** para convertir texto y d
 - `templates/index.html`: UI moderna con feedback dinámico y Modo Lectura Surround.
 
 ## 📈 Historial de Versiones (Alpha)
+
+- **v0.2.0 (Alpha):**
+  - **Nueva Funcionalidad de Importación:** Soporte para subir archivos de audio externos (MP3/WAV) y sincronizarlos con texto para Karaoke.
+  - **Streaming Persistente:** Los fragmentos de audio ya no se eliminan tras la conversión facilitando la lectura fluida post-procesado.
+  - **Persistencia de Progreso:** La aplicación ahora recuerda el último fragmento leído por el usuario.
+  - **Optimización de Karaoke:** Nuevo motor de estimación basado en longitud de texto para una sincronización instantánea en importaciones masivas.
+  - **UI Refinada:** Integración de herramientas de importación y mejoras en la robustez del modo lectura.
 
 - **v0.1.3 (Alpha):**
   - **Motor de Persistencia Atómica:** Solucionado problema de pérdida de progreso de lectura durante la generación de audio.

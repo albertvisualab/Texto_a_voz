@@ -172,6 +172,57 @@ def create_project():
     project_id = manager.create_project(name, chunks, voice, speed, lang)
     return jsonify({"project_id": project_id, "chunks": chunks})
 
+@app.route("/api/projects/import", methods=["POST"])
+def import_project():
+    if 'audio' not in request.files or 'text' not in request.files:
+        return jsonify({"error": "Audio and Text files are required"}), 400
+    
+    audio_file = request.files['audio']
+    text_file = request.files['text']
+    
+    name = request.form.get("name", "Importado")
+    voice = request.form.get("voice", "af_nicole")
+    speed = float(request.form.get("speed", 1.0))
+    lang = request.form.get("lang", "en-us")
+
+    # Guardar archivos temporales
+    audio_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(audio_file.filename))
+    text_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(text_file.filename))
+    audio_file.save(audio_path)
+    text_file.save(text_path)
+
+    try:
+        # Extraer texto si es PDF/Docx o leer si es TXT
+        text = processor.extract_text(text_path)
+        
+        # Dividir texto
+        chunks = processor.split_into_chunks(text, target_len=2500, first_chunk_len=4000)
+        
+        # Importar en el manager
+        project_id = manager.import_project(name, chunks, audio_path, voice, speed, lang)
+        
+        if project_id:
+            return jsonify({"project_id": project_id, "status": "imported"})
+        else:
+            return jsonify({"error": "Failed to import project"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        # Limpiar temporales
+        if os.path.exists(audio_path): os.remove(audio_path)
+        if os.path.exists(text_path): os.remove(text_path)
+
+@app.route("/api/projects/<project_id>/last_chunk", methods=["POST"])
+def update_last_chunk(project_id):
+    data = request.json
+    last_chunk = data.get("last_chunk", 0)
+    try:
+        if manager.update_last_chunk(project_id, last_chunk):
+            return jsonify({"status": "updated", "last_chunk": last_chunk})
+        return jsonify({"error": "Project not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/projects/<project_id>/chunk/<int:chunk_id>/prepare", methods=["POST"])
 def prepare_chunk(project_id, chunk_id):
     try:

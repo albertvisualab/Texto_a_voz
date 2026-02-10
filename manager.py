@@ -455,11 +455,7 @@ class BatchManager:
                 return False
 
             if self._update_project_status(project_id, mark_optimized):
-                # Eliminar carpeta de chunks para ahorrar espacio solo si se optimizó
-                import shutil
-                if os.path.exists(audio_chunks_dir):
-                    shutil.rmtree(audio_chunks_dir)
-                    print(f"Carpeta de chunks eliminada para {project_id} (Optimizado).")
+                print(f"Proyecto {project_id} marcado como optimizado. Los chunks se mantienen para streaming/karaoke.")
                     
         except Exception as e:
             print(f"Error crítico durante el ensamblado de audio: {e}")
@@ -481,3 +477,111 @@ class BatchManager:
         def update_lc(status):
             status["last_chunk"] = last_chunk
         return self._update_project_status(project_id, update_lc)
+
+    def import_project(self, name, chunks, audio_path, voice, speed, lang):
+        """
+        Importa un archivo de audio externo y lo prepara para karaoke
+        estimando los tiempos de sincronización basados en la longitud del texto.
+        Mucho más rápido que generar audio IA para estimar.
+        """
+        import shutil
+        import re
+        
+        # 1. Crear proyecto normal
+        project_id = self.create_project(name, chunks, voice, speed, lang)
+        project_path = os.path.join(self.projects_dir, project_id)
+        final_output_path = os.path.join(project_path, "final_output.wav")
+        
+        # 2. Mover el audio original a final_output.wav
+        shutil.copy(audio_path, final_output_path)
+        
+        # 3. Leer el audio original para obtener su duración real
+        try:
+            info = sf.info(final_output_path)
+            sr_original = info.samplerate
+            total_duration_real = info.duration
+            channels = info.channels
+            subtype = info.subtype
+        except Exception as e:
+            print(f"Error leyendo info de audio importado: {e}")
+            return None
+
+        # 4. Calcular pesos de cada chunk basados en longitud de caracteres
+        all_text = "".join(chunks)
+        total_chars = len(all_text)
+        if total_chars == 0: return project_id
+        
+        audio_chunks_dir = os.path.join(project_path, "audio_chunks")
+        current_pos_seconds = 0
+        
+        # Abrir el audio completo para ir troceándolo
+        try:
+            full_audio, _ = sf.read(final_output_path)
+            if len(full_audio.shape) > 1:
+                # Mantener canales originales si es posible para el troceado
+                pass
+        except Exception as e:
+            print(f"Error cargando audio para troceo: {e}")
+            return None
+
+        print(f"Importando audio: {total_duration_real:.2f}s, {len(chunks)} fragmentos.")
+
+        for i, chunk_text in enumerate(chunks):
+            # Duración proporcional de este chunk
+            chunk_ratio = len(chunk_text) / total_chars
+            chunk_duration = chunk_ratio * total_duration_real
+            
+            # Extraer y guardar el chunk.wav
+            start_sample = int(current_pos_seconds * sr_original)
+            end_sample = int((current_pos_seconds + chunk_duration) * sr_original)
+            
+            if i == len(chunks) - 1:
+                end_sample = len(full_audio)
+                
+            chunk_samples = full_audio[start_sample:end_sample]
+            chunk_wav_path = os.path.join(audio_chunks_dir, f"chunk_{i}.wav")
+            sf.write(chunk_wav_path, chunk_samples, sr_original)
+            
+            # Generar metadatos de Karaoke (Sub-chunks) basándose en oraciones
+            # Dividimos el chunk en oraciones simples
+            sub_texts = re.split(r'((?<=[.!?])\s+)', chunk_text)
+            metadata = []
+            
+            # Limpiar y agrupar (re.split devuelve los separadores como elementos impares)
+            actual_sub_texts = []
+            for j in range(0, len(sub_texts), 2):
+                t = sub_texts[j]
+                sep = sub_texts[j+1] if j+1 < len(sub_texts) else ""
+                combined = (t + sep).strip()
+                if combined:
+                    actual_sub_texts.append(combined)
+            
+            chunk_chars = sum(len(s) for s in actual_sub_texts)
+            if chunk_chars > 0:
+                for sub in actual_sub_texts:
+                    sub_ratio = len(sub) / chunk_chars
+                    sub_duration = sub_ratio * chunk_duration
+                    metadata.append({
+                        "text": sub,
+                        "duration": sub_duration
+                    })
+            
+            # Guardar chunk.json
+            chunk_json_path = os.path.join(audio_chunks_dir, f"chunk_{i}.json")
+            with open(chunk_json_path, "w", encoding="utf-8") as f:
+                json.dump(metadata, f)
+            
+            current_pos_seconds += chunk_duration
+
+        # 5. Marcar como completado y optimizado
+        def finalize(status):
+            for c in status["chunks"]:
+                c["status"] = "completed"
+            status["completed_chunks"] = len(chunks)
+            status["is_finished"] = True
+            status["is_optimized"] = True
+            return True
+            
+        self._update_project_status(project_id, finalize)
+        print(f"Importación de '{name}' completada instantáneamente.")
+        return project_id

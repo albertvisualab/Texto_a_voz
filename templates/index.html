@@ -621,11 +621,56 @@
                 </div>
             </div>
 
-            <div class="actions">
+            <div class="actions" style="margin-bottom: 24px;">
                 <button id="generate-btn" class="btn-primary">
                     <span class="loading-spinner" id="spinner"></span>
                     <span id="btn-text">Comenzar Lectura Fluida</span>
                 </button>
+                <button id="open-import-btn" class="btn-secondary" style="flex: 0.4;">
+                    🎤 Importar Audio
+                </button>
+            </div>
+
+            <!-- Import Modal -->
+            <div id="import-modal"
+                style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; padding: 20px;">
+                <div class="container"
+                    style="max-width: 500px; grid-template-columns: 1fr; border-color: var(--primary);">
+                    <h2 style="margin-bottom: 15px; color: var(--primary);">Importar para Karaoke</h2>
+                    <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">
+                        Sube un audio y su texto correspondiente para usar el modo karaoke.
+                    </p>
+
+                    <div class="input-group">
+                        <label>1. Archivo de Audio (WAV/MP3)</label>
+                        <input type="file" id="import-audio" accept="audio/*" class="btn-secondary"
+                            style="width: 100%; padding: 8px;">
+                    </div>
+
+                    <div class="input-group">
+                        <label>2. Texto (PDF/DOCX/TXT)</label>
+                        <input type="file" id="import-text" accept=".pdf,.docx,.txt" class="btn-secondary"
+                            style="width: 100%; padding: 8px;">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Nombre del Proyecto</label>
+                        <input type="text" id="import-name" placeholder="Ej: Mi Audiolibro"
+                            style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); padding: 10px; border-radius: 8px; color: white;">
+                    </div>
+
+                    <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 20px;">
+                        * Se usará la voz seleccionada actualmente para estimar los tiempos del karaoke.
+                    </div>
+
+                    <div class="actions">
+                        <button id="close-import-btn" class="btn-secondary">Cancelar</button>
+                        <button id="do-import-btn" class="btn-primary">
+                            <span class="loading-spinner" id="import-spinner" style="display: none;"></span>
+                            Confirmar Importación
+                        </button>
+                    </div>
+                </div>
             </div>
         </main>
 
@@ -950,6 +995,15 @@
 
             currentChunkIndex = nextIdx;
 
+            // Persistir progreso en el servidor
+            if (currentProjectId) {
+                fetch(`/api/projects/${currentProjectId}/last_chunk`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ last_chunk: currentChunkIndex })
+                }).catch(err => console.error("Error guardando progreso:", err));
+            }
+
             // Si el audio aún no está en el player (porque el pregenerador va lento), forzar carga
             const targetSrc = `${window.location.origin}/api/projects/${currentProjectId}/chunk/${currentChunkIndex}`;
             if (!currentPlayer.src.includes(targetSrc)) {
@@ -986,15 +1040,21 @@
         async function initializeProject(project, isResuming) {
             currentProjectId = project.id;
             totalChunks = project.total_chunks;
-            currentChunkIndex = project.completed_chunks - 1;
-            if (currentChunkIndex < -1) currentChunkIndex = -1;
+
+            // Si el proyecto esta terminado, empezamos de nuevo o desde el ultimo punto guardado
+            currentChunkIndex = (project.last_chunk || 0) - 1;
+            // Si por algun motivo el indice es invalido, resetear a -1 (empezar de 0)
+            if (currentChunkIndex < -1 || currentChunkIndex >= totalChunks - 1) {
+                currentChunkIndex = -1;
+            }
+
             pregenerationIndex = project.completed_chunks;
             isSessionResumed = true;
 
             if (isResuming) {
                 textInput.value = "Sesión recuperada: " + project.name;
             } else {
-                textInput.value = "Sesión recuperada: " + project.name; // Mantener sync para el oninput
+                textInput.value = "Sesión recuperada: " + project.name;
             }
 
             audioContainer.style.display = 'block';
@@ -1004,7 +1064,7 @@
 
             if (project.is_finished) {
                 showDownloadButton();
-                playNextChunk();
+                playNextChunk(); // Ahora si funcionara porque currentChunkIndex no es el final
             } else {
                 downloadZone.style.display = 'none';
 
@@ -1014,24 +1074,18 @@
                 generateBtn.classList.add('btn-secondary');
 
                 // Esperar a que el buffer tenga al menos el actual + 3 siguientes
-                statusBar.textContent = "⏳ Preparando primera parte y buffer de seguridad (esto puede tomar 1 o 2 minutos)...";
+                statusBar.textContent = "⏳ Preparando primera parte y buffer de seguridad...";
 
                 const waitBuffer = async () => {
                     if (currentProjectId !== project.id) return;
 
-                    // Si ya hay suficiente buffer (al menos el siguiente o 3 si hay muchos)
                     const targetBuffer = Math.min(totalChunks, currentChunkIndex + 3);
                     const isReady = pregenerationIndex >= targetBuffer;
 
                     if (isReady) {
                         playNextChunk();
                     } else {
-                        // Reportar progreso real del buffer en la barra superior también para que el usuario no se asuste
-                        if (pregenerationIndex === 0) {
-                            statusBar.textContent = "⏳ Generando fragmento inicial (calidad ultra-pro)...";
-                        } else {
-                            statusBar.textContent = `⏳ Llenando buffer: ${pregenerationIndex}/${targetBuffer} listos...`;
-                        }
+                        statusBar.textContent = `⏳ Llenando buffer: ${pregenerationIndex}/${targetBuffer} listos...`;
                         setTimeout(waitBuffer, 1000);
                     }
                 };
@@ -1249,33 +1303,40 @@
         // --- LÓGICA DE KARAOKE ---
 
         async function fetchChunkMetadata(index) {
-            if (lastMetadataFetchIdx === index) return;
+            if (currentProjectId === null) return;
+            if (lastMetadataFetchIdx === index && currentChunkMetadata) return;
             try {
                 const res = await fetch(`/api/projects/${currentProjectId}/chunk/${index}/metadata`);
                 if (res.ok) {
                     currentChunkMetadata = await res.json();
                     lastMetadataFetchIdx = index;
                     renderReadingContent();
+                } else {
+                    // Fallback si no hay metadata: mostrar el texto del chunk sin karaoke fino
+                    const projRes = await fetch(`/api/projects/${currentProjectId}`);
+                    const proj = await projRes.json();
+                    if (proj.chunks && proj.chunks[index]) {
+                        currentChunkMetadata = [{ text: proj.chunks[index], duration: 9999 }];
+                        renderReadingContent();
+                    }
                 }
             } catch (err) { console.error("Error fetching metadata:", err); }
         }
 
         function renderReadingContent() {
-            // Esta función podría ser más inteligente, por ahora solo muestra el chunk actual
-            // pero podríamos mostrar todo y resaltar
             if (!currentChunkMetadata) return;
-
             readingContent.innerHTML = '';
             currentChunkMetadata.forEach((item, idx) => {
                 const span = document.createElement('span');
                 span.id = `sub-chunk-${idx}`;
-                span.textContent = item.text;
+                span.textContent = item.text + " ";
                 readingContent.appendChild(span);
             });
+            readingContent.scrollTop = 0;
         }
 
         function updateKaraokeHighlight(currentTime) {
-            if (!currentChunkMetadata) return;
+            if (!currentChunkMetadata || currentChunkMetadata.length === 0) return;
 
             let elapsed = 0;
             let activeIdx = -1;
@@ -1289,13 +1350,15 @@
                 elapsed += item.duration;
             }
 
-            // Actualizar clases
+            // Fallbacks de resaltado
+            if (activeIdx === -1 && currentTime > 0) activeIdx = currentChunkMetadata.length - 1;
+            if (activeIdx === -1) activeIdx = 0;
+
             const spans = readingContent.querySelectorAll('span');
             spans.forEach((span, idx) => {
                 if (idx === activeIdx) {
                     if (!span.classList.contains('highlight')) {
                         span.className = 'highlight';
-                        // Scroll suave si no está visible
                         span.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                 } else if (idx < activeIdx) {
@@ -1305,13 +1368,19 @@
                 }
             });
 
-            readingStats.textContent = `Parte ${currentChunkIndex + 1} de ${totalChunks} — ${Math.round(currentTime)}s / ${Math.round(elapsed + (currentChunkMetadata[activeIdx]?.duration || 0))}s`;
+            const totalDur = elapsed + (currentChunkMetadata[activeIdx]?.duration || 0);
+            readingStats.textContent = `Parte ${currentChunkIndex + 1} de ${totalChunks} — ${Math.round(currentTime)}s / ${Math.round(totalDur)}s`;
+
+            // Sincronizar texto del botón
+            const currentPlayer = activePlayer === 'A' ? playerA : playerB;
+            readingPlayBtn.innerHTML = currentPlayer.paused ? '▶️ Reanudar' : '⏸️ Pausar';
         }
 
         // Integrar con los reproductores existentes
         [playerA, playerB].forEach(p => {
             p.addEventListener('timeupdate', () => {
-                if (readingOverlay.style.display === 'flex') {
+                const isActive = (activePlayer === 'A' && p === playerA) || (activePlayer === 'B' && p === playerB);
+                if (isActive && readingOverlay.style.display === 'flex') {
                     updateKaraokeHighlight(p.currentTime);
                 }
             });
@@ -1323,6 +1392,8 @@
 
         openReadingBtn.onclick = () => {
             readingOverlay.style.display = 'flex';
+            const nativeAudio = document.getElementById('reading-player');
+            if (nativeAudio) nativeAudio.style.display = 'none';
             readingTitle.textContent = "Lectura: " + (document.querySelector('.session-item.active strong')?.textContent || "Documento");
             fetchChunkMetadata(currentChunkIndex);
         };
@@ -1336,6 +1407,69 @@
         initializeProject = async (project, isResuming) => {
             await originalInitializeProject(project, isResuming);
             openReadingBtn.style.display = 'inline-flex';
+        };
+
+        // --- LÓGICA DE IMPORTACIÓN ---
+        const openImportBtn = document.getElementById('open-import-btn');
+        const closeImportBtn = document.getElementById('close-import-btn');
+        const importModal = document.getElementById('import-modal');
+        const doImportBtn = document.getElementById('do-import-btn');
+        const importSpinner = document.getElementById('import-spinner');
+
+        openImportBtn.onclick = () => importModal.style.display = 'flex';
+        closeImportBtn.onclick = () => importModal.style.display = 'none';
+
+        doImportBtn.onclick = async () => {
+            const audioFile = document.getElementById('import-audio').files[0];
+            const textFile = document.getElementById('import-text').files[0];
+            const name = document.getElementById('import-name').value || "Importado";
+
+            if (!audioFile || !textFile) return alert('Selecciona ambos archivos (Audio y Texto/PDF)');
+
+            doImportBtn.disabled = true;
+            importSpinner.style.display = 'inline-block';
+
+            let voiceFinal = voiceSelect.value;
+            let langFinal = voiceSelect.options[voiceSelect.selectedIndex].dataset.lang;
+
+            if (useMixerCheck.checked) {
+                const weightA = mixerRatio.value / 100;
+                const weightB = (100 - mixerRatio.value) / 100;
+                voiceFinal = `${voiceA.value}:${weightA.toFixed(2)},${voiceB.value}:${weightB.toFixed(2)}`;
+                langFinal = voiceA.options[voiceA.selectedIndex].dataset.lang;
+            }
+
+            const formData = new FormData();
+            formData.append('audio', audioFile);
+            formData.append('text', textFile);
+            formData.append('name', name);
+            formData.append('voice', voiceFinal);
+            formData.append('speed', speedInput.value);
+            formData.append('lang', langFinal);
+
+            try {
+                const res = await fetch('/api/projects/import', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.project_id) {
+                    importModal.style.display = 'none';
+                    loadSessions();
+                    alert('Proyecto importado con éxito. Ahora puedes seleccionarlo en la lista lateral.');
+                    // Limpiar campos
+                    document.getElementById('import-audio').value = '';
+                    document.getElementById('import-text').value = '';
+                    document.getElementById('import-name').value = '';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) {
+                alert('Error al importar: ' + err.message);
+            } finally {
+                doImportBtn.disabled = false;
+                importSpinner.style.display = 'none';
+            }
         };
 
         loadVoices();
