@@ -8,12 +8,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-            --glass: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --text: #f8fafc;
+            --primary: #97A788;
+            --primary-hover: #7c8c6d;
+            --secondary: #D6B972;
+            --bg-gradient: linear-gradient(135deg, #F9F4EF 0%, #F3EDE4 100%);
+            --glass: rgba(255, 255, 255, 0.7);
+            --glass-bg: rgba(255, 255, 255, 0.45);
+            --glass-border: rgba(20, 19, 19, 0.08);
+            --text: #141313;
+            --text-muted: #5e5a56;
         }
 
         * {
@@ -42,7 +45,7 @@
             border: 1px solid var(--glass-border);
             border-radius: 24px;
             padding: 40px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 25px 50px -12px rgba(20, 19, 19, 0.08);
             animation: fadeIn 0.8s ease-out;
             display: grid;
             grid-template-columns: 1fr 300px;
@@ -65,14 +68,14 @@
             font-size: 2.2rem;
             font-weight: 600;
             margin-bottom: 8px;
-            background: linear-gradient(to right, #818cf8, #c084fc);
+            background: linear-gradient(to right, var(--primary), var(--secondary));
             background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
         p.subtitle {
-            color: #94a3b8;
+            color: var(--text-muted);
             margin-bottom: 32px;
             font-weight: 300;
         }
@@ -85,27 +88,28 @@
             display: block;
             margin-bottom: 8px;
             font-size: 0.9rem;
-            color: #cbd5e1;
+            color: var(--text-muted);
             font-weight: 400;
         }
 
         textarea {
             width: 100%;
             height: 180px;
-            background: rgba(0, 0, 0, 0.2);
+            background: #ffffff;
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 16px;
-            color: white;
+            color: var(--text);
             font-size: 1rem;
             resize: none;
             transition: all 0.3s ease;
+            box-shadow: inset 0 2px 4px rgba(20, 19, 19, 0.02);
         }
 
         textarea:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+            box-shadow: 0 0 0 4px rgba(151, 167, 136, 0.2);
         }
 
         .controls {
@@ -118,24 +122,24 @@
         select,
         input[type="range"] {
             width: 100%;
-            background: rgba(15, 23, 42, 0.8);
+            background: #ffffff;
             border: 1px solid var(--glass-border);
             border-radius: 8px;
             padding: 10px;
-            color: white;
+            color: var(--text);
             cursor: pointer;
         }
 
         select option {
-            background: #0f172a;
-            color: white;
+            background: #ffffff;
+            color: var(--text);
         }
 
         .speed-val {
             display: flex;
             justify-content: space-between;
             font-size: 0.8rem;
-            color: #94a3b8;
+            color: var(--text-muted);
             margin-top: 4px;
         }
 
@@ -161,13 +165,13 @@
 
         .btn-primary {
             background: var(--primary);
-            color: white;
+            color: #F9F4EF;
         }
 
         .btn-primary:hover:not(:disabled) {
             background: var(--primary-hover);
             transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 10px 15px -3px rgba(151, 167, 136, 0.25);
         }
 
         .btn-primary:disabled {
@@ -176,12 +180,13 @@
         }
 
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
+            background: rgba(20, 19, 19, 0.05);
+            color: var(--text);
+            border: 1px solid rgba(20, 19, 19, 0.04);
         }
 
         .btn-secondary:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(20, 19, 19, 0.09);
         }
 
         /* Sidebar Session List */
@@ -195,7 +200,7 @@
         .sidebar h3 {
             font-size: 1.1rem;
             margin-bottom: 15px;
-            color: #818cf8;
+            color: var(--primary);
         }
 
         .session-list {
@@ -207,7 +212,7 @@
         }
 
         .session-item {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.85);
             border: 1px solid var(--glass-border);
             padding: 14px;
             border-radius: 12px;
@@ -218,6 +223,13 @@
             align-items: center;
             gap: 12px;
             justify-content: space-between;
+            box-shadow: 0 4px 6px -1px rgba(20, 19, 19, 0.02);
+        }
+
+        .session-item:hover {
+            box-shadow: 0 10px 15px -3px rgba(20, 19, 19, 0.05);
+            transform: translateY(-1px);
+            border-color: var(--primary);
         }
 
         .session-info {
@@ -232,7 +244,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            color: #f1f5f9;
+            color: var(--text);
         }
 
         .session-actions {
@@ -244,7 +256,7 @@
         .btn-delete-session {
             background: none;
             border: none;
-            color: #94a3b8;
+            color: var(--text-muted);
             font-size: 1.2rem;
             cursor: pointer;
             padding: 4px;
@@ -264,7 +276,7 @@
         .btn-rename-session {
             background: none;
             border: none;
-            color: #94a3b8;
+            color: var(--text-muted);
             font-size: 1rem;
             cursor: pointer;
             padding: 4px;
@@ -277,12 +289,12 @@
         }
 
         .btn-rename-session:hover {
-            color: #fbbf24;
-            background: rgba(251, 191, 36, 0.1);
+            color: #d97706;
+            background: rgba(217, 119, 6, 0.1);
         }
 
         .btn-download-session {
-            color: #22c55e;
+            color: var(--primary);
             font-size: 1.1rem;
             text-decoration: none;
             padding: 4px;
@@ -294,12 +306,12 @@
         }
 
         .btn-download-session:hover {
-            background: rgba(34, 197, 94, 0.1);
+            background: rgba(151, 167, 136, 0.1);
             transform: scale(1.1);
         }
 
         .session-item small {
-            color: #94a3b8;
+            color: var(--text-muted);
             font-size: 0.75rem;
         }
 
@@ -316,7 +328,7 @@
             display: none;
             margin-top: 20px;
             padding: 16px;
-            background: rgba(99, 102, 241, 0.1);
+            background: rgba(151, 167, 136, 0.08);
             border: 1px dashed var(--primary);
             border-radius: 12px;
             text-align: center;
@@ -324,8 +336,8 @@
         }
 
         .btn-download {
-            background: #22c55e;
-            color: white;
+            background: var(--primary);
+            color: #F9F4EF;
             padding: 8px 16px;
             font-size: 0.9rem;
             border-radius: 8px;
@@ -337,24 +349,23 @@
         }
 
         .btn-download:hover {
-            background: #16a34a;
+            background: var(--primary-hover);
             transform: scale(1.05);
         }
 
         audio {
             width: 100%;
             height: 40px;
-            filter: invert(100%) hue-rotate(180deg) brightness(1.5);
-            opacity: 0.8;
+            opacity: 0.9;
         }
 
         .loading-spinner {
             display: none;
             width: 20px;
             height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(20, 19, 19, 0.2);
             border-radius: 50%;
-            border-top-color: white;
+            border-top-color: var(--primary);
             animation: spin 1s linear infinite;
         }
 
@@ -366,7 +377,7 @@
 
         /* Mixer Styles */
         .mixer-container {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.5);
             border: 1px solid var(--glass-border);
             border-radius: 16px;
             padding: 20px;
@@ -384,7 +395,7 @@
         .mixer-title {
             font-size: 1rem;
             font-weight: 600;
-            color: #818cf8;
+            color: var(--primary);
         }
 
         .mixer-grid {
@@ -403,7 +414,7 @@
         .mixer-weight-display {
             text-align: center;
             font-size: 0.8rem;
-            color: #94a3b8;
+            color: var(--text-muted);
             font-weight: 600;
         }
 
@@ -415,9 +426,9 @@
         }
 
         .preview-mini-btn {
-            background: rgba(99, 102, 241, 0.2);
+            background: rgba(151, 167, 136, 0.15);
             border: 1px solid var(--primary);
-            color: white;
+            color: var(--text);
             padding: 4px 10px;
             font-size: 0.7rem;
             border-radius: 6px;
@@ -427,6 +438,7 @@
 
         .preview-mini-btn:hover {
             background: var(--primary);
+            color: #F9F4EF;
         }
 
         .container {
@@ -443,7 +455,7 @@
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 30px -15px rgba(20, 19, 19, 0.05);
             height: fit-content;
         }
 
@@ -498,9 +510,9 @@
         }
 
         .btn-close-reading {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(20, 19, 19, 0.05);
             border: 1px solid var(--glass-border);
-            color: white;
+            color: var(--text);
             padding: 10px 20px;
             border-radius: 12px;
             cursor: pointer;
@@ -508,25 +520,27 @@
         }
 
         .btn-close-reading:hover {
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.1);
             border-color: #ef4444;
+            color: #ef4444;
         }
 
         .reading-content {
             flex: 1;
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.7);
             border: 1px solid var(--glass-border);
             border-radius: 24px;
             padding: 60px;
             overflow-y: auto;
             font-size: 1.8rem;
             line-height: 1.6;
-            color: #94a3b8;
+            color: var(--text-muted);
             scroll-behavior: smooth;
             text-align: center;
             max-width: 1000px;
             margin: 0 auto;
             width: 100%;
+            box-shadow: 0 20px 40px -15px rgba(20, 19, 19, 0.05);
         }
 
         .reading-content span {
@@ -537,14 +551,15 @@
         }
 
         .reading-content span.highlight {
-            color: #fff;
-            text-shadow: 0 0 15px rgba(99, 102, 241, 0.8);
+            color: var(--text);
+            text-shadow: 0 0 20px rgba(214, 185, 114, 0.4);
             transform: scale(1.05);
             font-weight: 600;
+            border-bottom: 3px solid var(--secondary);
         }
 
         .reading-content span.past {
-            color: #475569;
+            color: #bdafa4;
         }
 
         .reading-footer {
@@ -555,7 +570,7 @@
 
         .reading-stats {
             font-size: 0.9rem;
-            color: #818cf8;
+            color: var(--primary);
             margin-bottom: 10px;
         }
 
@@ -567,7 +582,7 @@
             transform: translate(-50%, -50%);
             width: 600px;
             height: 600px;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(214, 185, 114, 0.12) 0%, transparent 70%);
             pointer-events: none;
             z-index: -1;
         }
@@ -589,7 +604,7 @@
             
             <div class="input-group">
                 <label>Modo de Lectura</label>
-                <select id="reading-mode" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; color: white;">
+                <select id="reading-mode" style="width: 100%; padding: 8px; background: #ffffff; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text);">
                     <option value="fluid">Fluida (Sin Pausas)</option>
                     <option value="natural">Natural (Con Pausas 1s)</option>
                 </select>
@@ -597,7 +612,7 @@
 
             <div class="input-group">
                 <label>Formato de Salida</label>
-                <select id="output-format" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; color: white;">
+                <select id="output-format" style="width: 100%; padding: 8px; background: #ffffff; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text);">
                     <option value="wav">WAV (Máxima Calidad)</option>
                     <option value="mp3">MP3 (Comprimido)</option>
                 </select>
@@ -605,7 +620,7 @@
 
             <div class="input-group" id="bitrate-group" style="display: none;">
                 <label>Calidad MP3</label>
-                <select id="bitrate" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; color: white;">
+                <select id="bitrate" style="width: 100%; padding: 8px; background: #ffffff; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text);">
                     <option value="128k">128 kbps</option>
                     <option value="192k" selected>192 kbps (Recomendado)</option>
                     <option value="320k">320 kbps (Alta)</option>
@@ -624,14 +639,14 @@
                     <select id="voice"></select>
                 </div>
 
-                <div id="mixer-section" style="display: none; margin-top: 8px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px dashed var(--glass-border);">
+                <div id="mixer-section" style="display: none; margin-top: 8px; background: rgba(255,255,255,0.4); padding: 10px; border-radius: 8px; border: 1px dashed var(--glass-border);">
                     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                         <div style="flex: 1;">
-                            <label style="font-size: 0.7rem; color: #94a3b8;">Voz A (Izq)</label>
+                            <label style="font-size: 0.7rem; color: var(--text-muted);">Voz A (Izq)</label>
                             <select id="voice-a"></select>
                         </div>
                         <div style="flex: 1;">
-                            <label style="font-size: 0.7rem; color: #94a3b8;">Voz B (Der)</label>
+                            <label style="font-size: 0.7rem; color: var(--text-muted);">Voz B (Der)</label>
                             <select id="voice-b"></select>
                         </div>
                     </div>
@@ -693,11 +708,11 @@
 
             <!-- Import Modal -->
             <div id="import-modal"
-                style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; padding: 20px;">
+                style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(20, 19, 19, 0.4); z-index: 2000; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px);">
                 <div class="container"
-                    style="max-width: 500px; grid-template-columns: 1fr; border-color: var(--primary);">
+                    style="max-width: 500px; grid-template-columns: 1fr; border-color: var(--primary); background: #FAF7F2;">
                     <h2 style="margin-bottom: 15px; color: var(--primary);">Importar para Karaoke</h2>
-                    <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">
                         Sube un audio y su texto correspondiente para usar el modo karaoke.
                     </p>
 
@@ -716,10 +731,10 @@
                     <div class="input-group">
                         <label>Nombre del Proyecto</label>
                         <input type="text" id="import-name" placeholder="Ej: Mi Audiolibro"
-                            style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); padding: 10px; border-radius: 8px; color: white;">
+                            style="width: 100%; background: #ffffff; border: 1px solid var(--glass-border); padding: 10px; border-radius: 8px; color: var(--text);">
                     </div>
 
-                    <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 20px;">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 20px;">
                         * Se usará la voz seleccionada actualmente para estimar los tiempos del karaoke.
                     </div>
 
