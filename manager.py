@@ -4,6 +4,9 @@ import time
 import re
 import soundfile as sf
 import numpy as np
+import imageio_ffmpeg
+from pydub import AudioSegment
+AudioSegment.converter = imageio_ffmpeg.get_ffmpeg_exe()
 from kokoro_onnx import Kokoro
 import io
 import threading
@@ -195,7 +198,7 @@ class BatchManager:
             
         return metadata, np.concatenate(all_samples), sample_rate
 
-    def create_project(self, name, chunks, voice, speed, lang):
+    def create_project(self, name, chunks, voice, speed, lang, reading_mode="fluid", output_format="wav", bitrate="192k"):
         # Sanitizar nombre para evitar errores en Windows
         # 1. Eliminar caracteres de control (como \n, \r, \t)
         clean_name = "".join(c for c in name if c.isprintable())
@@ -216,6 +219,9 @@ class BatchManager:
             "voice": voice,
             "speed": speed,
             "lang": lang,
+            "reading_mode": reading_mode,
+            "output_format": output_format,
+            "bitrate": bitrate,
             "total_chunks": len(chunks),
             "completed_chunks": 0,
             "last_chunk": 0,
@@ -297,6 +303,12 @@ class BatchManager:
                     chunk_id
                 )
                 
+                if project.get("reading_mode") == "natural":
+                    silence = np.zeros(int(sample_rate * 1.0), dtype=np.float32)
+                    combined_samples = np.concatenate((combined_samples, silence))
+                    if metadata:
+                        metadata[-1]["duration"] += 1.0
+                
                 # Guardar el audio
                 sf.write(chunk_path, combined_samples, sample_rate)
                 
@@ -364,6 +376,12 @@ class BatchManager:
                 project["lang"],
                 next_chunk["id"]
             )
+            
+            if project.get("reading_mode") == "natural":
+                silence = np.zeros(int(sample_rate * 1.0), dtype=np.float32)
+                combined_samples = np.concatenate((combined_samples, silence))
+                if metadata:
+                    metadata[-1]["duration"] += 1.0
             
             project_path = os.path.join(self.projects_dir, project_id)
             chunk_filename = f"chunk_{next_chunk['id']}.wav"
@@ -446,6 +464,17 @@ class BatchManager:
 
             print(f"Audio final ensamblado exitosamente en: {output_path}")
             
+            # Nueva lógica para MP3
+            if status.get("output_format") == "mp3":
+                print(f"Convirtiendo a MP3 a {status.get('bitrate', '192k')}...")
+                try:
+                    audio = AudioSegment.from_wav(output_path)
+                    mp3_path = output_path.replace(".wav", ".mp3")
+                    audio.export(mp3_path, format="mp3", bitrate=status.get("bitrate", "192k"))
+                    print(f"MP3 generado: {mp3_path}")
+                except Exception as e:
+                    print(f"Error al convertir a MP3: {e}")
+            
             # Actualizar estado final de forma atómica
             def mark_optimized(s):
                 if s.get("completed_chunks", 0) >= s.get("total_chunks", 0):
@@ -478,7 +507,7 @@ class BatchManager:
             status["last_chunk"] = last_chunk
         return self._update_project_status(project_id, update_lc)
 
-    def import_project(self, name, chunks, audio_path, voice, speed, lang):
+    def import_project(self, name, chunks, audio_path, voice, speed, lang, reading_mode="fluid", output_format="wav", bitrate="192k"):
         """
         Importa un archivo de audio externo y lo prepara para karaoke
         estimando los tiempos de sincronización basados en la longitud del texto.
@@ -488,7 +517,7 @@ class BatchManager:
         import re
         
         # 1. Crear proyecto normal
-        project_id = self.create_project(name, chunks, voice, speed, lang)
+        project_id = self.create_project(name, chunks, voice, speed, lang, reading_mode, output_format, bitrate)
         project_path = os.path.join(self.projects_dir, project_id)
         final_output_path = os.path.join(project_path, "final_output.wav")
         

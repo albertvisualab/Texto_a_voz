@@ -6,6 +6,8 @@ import re
 import soundfile as sf
 import numpy as np
 import ctypes
+import queue
+import threading
 from flask import Flask, render_template, request, send_file, jsonify
 from werkzeug.utils import secure_filename
 
@@ -61,6 +63,37 @@ def boost_performance():
 
 # Ejecutar optimización al arrancar
 boost_performance()
+
+# Cola de procesamiento en lote
+processing_queue = queue.Queue()
+queue_status = {"is_running": False}
+
+def background_worker():
+    while True:
+        try:
+            project_id = processing_queue.get(timeout=1)
+        except queue.Empty:
+            continue
+            
+        if project_id is None: break
+        
+        while True:
+            # Esperar si la cola está pausada
+            while not queue_status["is_running"]:
+                time.sleep(1)
+                
+            project = manager.get_project(project_id)
+            if not project or project.get("is_finished"):
+                break
+            try:
+                manager.process_next_chunk(project_id)
+            except Exception as e:
+                print(f"Background worker error on {project_id}: {e}")
+                break
+        processing_queue.task_done()
+
+worker_thread = threading.Thread(target=background_worker, daemon=True)
+worker_thread.start()
 
 # Inicializar Manager y Processor
 # Nota: manager inicializa Kokoro internamente
@@ -163,13 +196,17 @@ def create_project():
     voice = data.get("voice", "af_nicole")
     speed = float(data.get("speed", 1.0))
     lang = data.get("lang", "en-us")
+    reading_mode = data.get("reading_mode", "fluid")
+    output_format = data.get("output_format", "wav")
+    bitrate = data.get("bitrate", "192k")
 
     if not text:
         return jsonify({"error": "No text provided"}), 400
 
     # Usar el nuevo split asimétrico: 4000 caracteres para el primero, el resto 2500
     chunks = processor.split_into_chunks(text, target_len=2500, first_chunk_len=4000)
-    project_id = manager.create_project(name, chunks, voice, speed, lang)
+    project_id = manager.create_project(name, chunks, voice, speed, lang, reading_mode, output_format, bitrate)
+    processing_queue.put(project_id)
     return jsonify({"project_id": project_id, "chunks": chunks})
 
 @app.route("/api/projects/import", methods=["POST"])
@@ -184,6 +221,9 @@ def import_project():
     voice = request.form.get("voice", "af_nicole")
     speed = float(request.form.get("speed", 1.0))
     lang = request.form.get("lang", "en-us")
+    reading_mode = request.form.get("reading_mode", "fluid")
+    output_format = request.form.get("output_format", "wav")
+    bitrate = request.form.get("bitrate", "192k")
 
     # Guardar archivos temporales
     audio_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(audio_file.filename))
@@ -199,7 +239,7 @@ def import_project():
         chunks = processor.split_into_chunks(text, target_len=2500, first_chunk_len=4000)
         
         # Importar en el manager
-        project_id = manager.import_project(name, chunks, audio_path, voice, speed, lang)
+        project_id = manager.import_project(name, chunks, audio_path, voice, speed, lang, reading_mode, output_format, bitrate)
         
         if project_id:
             return jsonify({"project_id": project_id, "status": "imported"})
@@ -211,6 +251,54 @@ def import_project():
         # Limpiar temporales
         if os.path.exists(audio_path): os.remove(audio_path)
         if os.path.exists(text_path): os.remove(text_path)
+
+@app.route("/api/batch/add", methods=["POST"])
+def batch_add():
+    voice = request.form.get("voice", "af_nicole")
+    speed = float(request.form.get("speed", 1.0))
+    lang = request.form.get("lang", "en-us")
+    reading_mode = request.form.get("reading_mode", "fluid")
+    output_format = request.form.get("output_format", "wav")
+    bitrate = request.form.get("bitrate", "192k")
+    
+    project_ids = []
+    if 'files' not in request.files:
+        return jsonify({"error": "No files provided"}), 400
+        
+    for file in request.files.getlist("files"):
+        if file.filename == '': continue
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        try:
+            text = processor.extract_text(filepath)
+            name = os.path.splitext(filename)[0]
+            if not text.strip(): continue
+            chunks = processor.split_into_chunks(text, target_len=2500, first_chunk_len=4000)
+            project_id = manager.create_project(name, chunks, voice, speed, lang, reading_mode, output_format, bitrate)
+            processing_queue.put(project_id)
+            project_ids.append(project_id)
+        except Exception as e:
+            print(f"Error procesando lote para {filename}: {e}")
+        finally:
+            if os.path.exists(filepath): os.remove(filepath)
+            
+    return jsonify({"status": "queued", "project_ids": project_ids})
+
+@app.route("/api/queue/start", methods=["POST"])
+def start_queue():
+    queue_status["is_running"] = True
+    return jsonify({"status": "running"})
+
+@app.route("/api/queue/stop", methods=["POST"])
+def stop_queue():
+    queue_status["is_running"] = False
+    return jsonify({"status": "paused"})
+
+@app.route("/api/queue/status", methods=["GET"])
+def get_queue_status():
+    return jsonify(queue_status)
 
 @app.route("/api/projects/<project_id>/last_chunk", methods=["POST"])
 def update_last_chunk(project_id):

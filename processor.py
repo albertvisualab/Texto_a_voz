@@ -2,6 +2,9 @@ import os
 import re
 import fitz
 from docx import Document
+import ebooklib
+from ebooklib import epub
+from bs4 import BeautifulSoup
 
 class TextProcessor:
     @staticmethod
@@ -18,6 +21,11 @@ class TextProcessor:
         elif ext == 'txt':
             with open(filepath, 'r', encoding='utf-8') as f:
                 text = f.read()
+        elif ext == 'epub':
+            book = epub.read_epub(filepath)
+            for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+                soup = BeautifulSoup(item.get_body_content(), 'html.parser')
+                text += soup.get_text() + "\n\n"
         return text.strip()
 
     @staticmethod

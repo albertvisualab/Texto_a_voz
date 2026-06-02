@@ -429,17 +429,48 @@
             background: var(--primary);
         }
 
-        @media (max-width: 850px) {
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 280px 1fr 300px;
+            gap: 20px;
+        }
+
+        .settings-sidebar {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            height: fit-content;
+        }
+
+        .settings-sidebar h3 {
+            margin-top: 0;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr 300px;
+            }
+            .settings-sidebar {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 768px) {
             .container {
                 grid-template-columns: 1fr;
             }
+        }
 
-            .sidebar {
-                border-left: none;
-                border-top: 1px solid var(--glass-border);
-                padding-left: 0;
-                padding-top: 20px;
-            }
+        .sidebar {
+            border-left: 1px solid var(--glass-border);
+            padding-left: 20px;
         }
 
         /* Reading Mode / Karaoke */
@@ -552,15 +583,93 @@
 
 <body>
     <div class="container">
+        <!-- Panel Izquierdo: Ajustes -->
+        <aside class="settings-sidebar">
+            <h3>⚙️ Configuración Global</h3>
+            
+            <div class="input-group">
+                <label>Modo de Lectura</label>
+                <select id="reading-mode" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; color: white;">
+                    <option value="fluid">Fluida (Sin Pausas)</option>
+                    <option value="natural">Natural (Con Pausas 1s)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Formato de Salida</label>
+                <select id="output-format" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; color: white;">
+                    <option value="wav">WAV (Máxima Calidad)</option>
+                    <option value="mp3">MP3 (Comprimido)</option>
+                </select>
+            </div>
+
+            <div class="input-group" id="bitrate-group" style="display: none;">
+                <label>Calidad MP3</label>
+                <select id="bitrate" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; color: white;">
+                    <option value="128k">128 kbps</option>
+                    <option value="192k" selected>192 kbps (Recomendado)</option>
+                    <option value="320k">320 kbps (Alta)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label for="voice" style="margin-bottom: 0;">Voz Principal</label>
+                    <label style="font-size: 0.75rem; color: var(--primary); display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                        <input type="checkbox" id="use-mixer" style="margin:0;"> Mezclador
+                    </label>
+                </div>
+                
+                <div id="single-voice-container" style="margin-top: 8px;">
+                    <select id="voice"></select>
+                </div>
+
+                <div id="mixer-section" style="display: none; margin-top: 8px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px dashed var(--glass-border);">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.7rem; color: #94a3b8;">Voz A (Izq)</label>
+                            <select id="voice-a"></select>
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.7rem; color: #94a3b8;">Voz B (Der)</label>
+                            <select id="voice-b"></select>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 0.75rem;">
+                        <span id="weight-a-display" style="color: var(--primary);">50%</span>
+                        <span style="color: #94a3b8;">Balance</span>
+                        <span id="weight-b-display" style="color: var(--secondary);">50%</span>
+                    </div>
+                    <input type="range" id="mixer-ratio" min="0" max="100" value="50" style="width: 100%;">
+                    
+                    <button id="preview-blend-btn" class="btn-secondary" style="width: 100%; padding: 4px; font-size: 0.75rem; margin-top: 8px;">
+                        🔊 Escuchar Mezcla
+                    </button>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <div style="display: flex; justify-content: space-between;">
+                    <label for="speed">Velocidad</label>
+                    <span id="speed-display" style="color: var(--primary); font-weight: bold;">1x</span>
+                </div>
+                <input type="range" id="speed" min="0.5" max="2" step="0.1" value="1">
+            </div>
+        </aside>
+
+        <!-- Panel Central: Conversión -->
         <main>
             <h1>Kokoro Pro AI</h1>
-            <p class="subtitle">Modo Lectura Fluida (Sin Pausas)</p>
+            <p class="subtitle" style="display: flex; gap: 10px; align-items: center;">
+                Generador de Audiolibros
+            </p>
 
             <div class="input-group">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <label style="margin-bottom: 0;">Texto o Archivo</label>
                     <div style="display: flex; gap: 8px;">
-                        <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display: none;">
+                        <input type="file" id="file-input" accept=".pdf,.docx,.txt,.epub" multiple style="display: none;">
                         <button id="upload-btn" class="btn-secondary"
                             style="padding: 6px 12px; font-size: 0.75rem; flex: none;">
                             📄 Subir
@@ -570,61 +679,12 @@
                 <textarea id="text" placeholder="Escribe aquí o sube un libro..."></textarea>
             </div>
 
-            <div class="mixer-container" id="mixer-section">
-                <div class="mixer-header">
-                    <span class="mixer-title">🎚️ Mezclador de Voz (Pro)</span>
-                    <button id="preview-blend-btn" class="preview-mini-btn">Escuchar Mezcla</button>
-                </div>
-                <div class="mixer-grid">
-                    <div class="mixer-voice-col">
-                        <label>Voz A (Principal)</label>
-                        <select id="voice-a" class="voice-selector"></select>
-                        <div id="weight-a-display" class="mixer-weight-display">70%</div>
-                    </div>
-                    <div class="mixer-slider-container">
-                        <input type="range" id="mixer-ratio" min="0" max="100" value="70"
-                            style="width: 100px; transform: rotate(0deg);">
-                        <span style="font-size: 0.7rem; color: #64748b;">Balance</span>
-                    </div>
-                    <div class="mixer-voice-col">
-                        <label>Voz B (Matiz)</label>
-                        <select id="voice-b" class="voice-selector"></select>
-                        <div id="weight-b-display" class="mixer-weight-display">30%</div>
-                    </div>
-                </div>
-                <div style="margin-top: 10px; font-size: 0.75rem; color: #64748b; text-align: center;">
-                    Crea voces únicas mezclando los matices de dos locutores.
-                </div>
-            </div>
 
-            <div class="controls">
-                <div style="grid-column: 1 / span 2;">
-                    <label>Usar Mezcla o Voz Individual</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="checkbox" id="use-mixer" checked
-                            style="width: 20px; height: 20px; cursor: pointer;">
-                        <span style="font-size: 0.9rem; color: #cbd5e1;">Activar Mezclador Personalizado</span>
-                    </div>
-                </div>
-                <div id="single-voice-container" style="display: none;">
-                    <label>Voz Individual</label>
-                    <select id="voice"></select>
-                </div>
-                <div id="speed-container" style="grid-column: 1 / span 2;">
-                    <label>Velocidad</label>
-                    <input type="range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0">
-                    <div class="speed-val">
-                        <span>0.5x</span>
-                        <span id="speed-display">1.0x</span>
-                        <span>2.0x</span>
-                    </div>
-                </div>
-            </div>
 
             <div class="actions" style="margin-bottom: 24px;">
                 <button id="generate-btn" class="btn-primary">
                     <span class="loading-spinner" id="spinner"></span>
-                    <span id="btn-text">Comenzar Lectura Fluida</span>
+                    <span id="btn-text">Añadir a la Cola</span>
                 </button>
                 <button id="open-import-btn" class="btn-secondary" style="flex: 0.4;">
                     🎤 Importar Audio
@@ -648,8 +708,8 @@
                     </div>
 
                     <div class="input-group">
-                        <label>2. Texto (PDF/DOCX/TXT)</label>
-                        <input type="file" id="import-text" accept=".pdf,.docx,.txt" class="btn-secondary"
+                        <label>2. Texto (PDF/DOCX/TXT/EPUB)</label>
+                        <input type="file" id="import-text" accept=".pdf,.docx,.txt,.epub" class="btn-secondary"
                             style="width: 100%; padding: 8px;">
                     </div>
 
@@ -675,7 +735,12 @@
         </main>
 
         <aside class="sidebar">
-            <h3>Lecturas Guardadas</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #818cf8; font-size: 1.1rem; flex: 1; min-width: max-content;">Cola de Trabajo</h3>
+                <button id="queue-control-btn" class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; flex: 0 0 auto;">
+                    ▶️ Iniciar Cola
+                </button>
+            </div>
             <div id="session-list" class="session-list">
                 <p style="font-size: 0.8rem; color: #475569;">Cargando sesiones...</p>
             </div>
@@ -912,6 +977,12 @@
         // Sistema de Pre-generación Agresiva
         async function runPregenerator() {
             if (isPregenerating || !currentProjectId) return;
+            
+            if (!isQueueRunning) {
+                bufferStatus.textContent = "⏸️ Cola pausada. Inicia la cola en el panel derecho.";
+                setTimeout(runPregenerator, 1500);
+                return;
+            }
 
             isPregenerating = true;
 
@@ -1085,7 +1156,11 @@
                     if (isReady) {
                         playNextChunk();
                     } else {
-                        statusBar.textContent = `⏳ Llenando buffer: ${pregenerationIndex}/${targetBuffer} listos...`;
+                        if (!isQueueRunning) {
+                            statusBar.textContent = "⏸️ Cola pausada. Inicia la cola para continuar la reproducción.";
+                        } else {
+                            statusBar.textContent = `⏳ Llenando buffer: ${pregenerationIndex}/${targetBuffer} listos...`;
+                        }
                         setTimeout(waitBuffer, 1000);
                     }
                 };
@@ -1128,7 +1203,13 @@
             });
         });
 
-        // --- EVENTOS DEL MEZCLADOR ---
+        // --- EVENTOS DEL MEZCLADOR Y AJUSTES ---
+        const outputFormat = document.getElementById('output-format');
+        const bitrateGroup = document.getElementById('bitrate-group');
+        outputFormat.onchange = () => {
+            bitrateGroup.style.display = outputFormat.value === 'mp3' ? 'block' : 'none';
+        };
+
         useMixerCheck.onchange = () => {
             mixerSection.style.display = useMixerCheck.checked ? 'block' : 'none';
             singleVoiceContainer.style.display = useMixerCheck.checked ? 'none' : 'block';
@@ -1188,18 +1269,77 @@
         uploadBtn.onclick = () => fileInput.click();
 
         fileInput.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const formData = new FormData();
-            formData.append('file', file);
-            uploadBtn.textContent = '...';
-            try {
-                const res = await fetch('/api/extract', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.text) textInput.value = data.text;
-            } catch (err) { alert('Error subiendo archivo'); }
-            finally { uploadBtn.textContent = '📄 Subir'; }
+            const files = e.target.files;
+            if (files.length === 0) return;
+            
+            if (files.length === 1) {
+                // Un solo archivo: extraer texto y poner en el textarea
+                const formData = new FormData();
+                formData.append('file', files[0]);
+                uploadBtn.textContent = '...';
+                try {
+                    const res = await fetch('/api/extract', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.text) textInput.value = data.text;
+                } catch (err) { alert('Error subiendo archivo'); }
+                finally { uploadBtn.textContent = '📄 Subir'; }
+            } else {
+                // Múltiples archivos: enviarlos directamente a la cola
+                uploadBtn.textContent = 'Añadiendo...';
+                const formData = new FormData();
+                for(let i=0; i<files.length; i++) {
+                    formData.append('files', files[i]);
+                }
+                
+                let voiceFinal = voiceSelect.value;
+                let langFinal = voiceSelect.options[voiceSelect.selectedIndex].dataset.lang;
+                if (useMixerCheck.checked) {
+                    const weightA = mixerRatio.value / 100;
+                    const weightB = (100 - mixerRatio.value) / 100;
+                    voiceFinal = `${voiceA.value}:${weightA.toFixed(2)},${voiceB.value}:${weightB.toFixed(2)}`;
+                    langFinal = voiceA.options[voiceA.selectedIndex].dataset.lang;
+                }
+                formData.append('voice', voiceFinal);
+                formData.append('speed', speedInput.value);
+                formData.append('lang', langFinal);
+                formData.append('reading_mode', document.getElementById('reading-mode').value);
+
+                try {
+                    const res = await fetch('/api/batch/add', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.status === "queued") {
+                        loadSessions();
+                        // No mostramos alert molesto, solo limpiamos el input para poder subir más
+                    } else {
+                        alert('Error al enviar lote: ' + data.error);
+                    }
+                } catch(err) { alert('Error al enviar lote'); }
+                finally { 
+                    uploadBtn.textContent = '📄 Subir'; 
+                    fileInput.value = '';
+                }
+            }
         };
+
+        // --- DRAG AND DROP ---
+        const dropZone = document.getElementById('text');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--primary)';
+        });
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--glass-border)';
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--glass-border)';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
 
         generateBtn.onclick = async () => {
             // DESBLOQUEO INMEDIATO: Capturar el gesto del usuario al instante
@@ -1245,7 +1385,8 @@
                 text: text,
                 voice: voiceFinal,
                 speed: speedInput.value,
-                lang: langFinal
+                lang: langFinal,
+                reading_mode: document.getElementById('reading-mode').value
             };
 
             try {
@@ -1256,16 +1397,14 @@
                 });
                 const data = await res.json();
                 if (data.project_id) {
-                    // Obtener los datos completos del proyecto para inicializar
-                    const resP = await fetch(`/api/projects/${data.project_id}`);
-                    const project = await resP.json();
-                    initializeProject(project, false);
+                    textInput.value = ''; // Limpiar el área de texto tras enviar a la cola
+                    loadSessions();
                 }
             } catch (err) { alert('Error al iniciar'); }
             finally {
                 generateBtn.disabled = false;
                 spinner.style.display = 'none';
-                btnText.textContent = 'Comenzar Lectura Fluida';
+                btnText.textContent = 'Añadir a la Cola';
             }
         };
 
@@ -1446,6 +1585,7 @@
             formData.append('voice', voiceFinal);
             formData.append('speed', speedInput.value);
             formData.append('lang', langFinal);
+            formData.append('reading_mode', document.getElementById('reading-mode').value);
 
             try {
                 const res = await fetch('/api/projects/import', {
@@ -1472,8 +1612,47 @@
             }
         };
 
+        // --- LÓGICA DE CONTROL DE COLA ---
+        const queueControlBtn = document.getElementById('queue-control-btn');
+        let isQueueRunning = false;
+
+        async function fetchQueueStatus() {
+            try {
+                const res = await fetch('/api/queue/status');
+                const data = await res.json();
+                isQueueRunning = data.is_running;
+                updateQueueBtnUI();
+            } catch (err) {}
+        }
+
+        function updateQueueBtnUI() {
+            if (isQueueRunning) {
+                queueControlBtn.innerHTML = '⏸️ Pausar Cola';
+                queueControlBtn.classList.remove('btn-primary');
+                queueControlBtn.classList.add('btn-secondary');
+            } else {
+                queueControlBtn.innerHTML = '▶️ Iniciar Cola';
+                queueControlBtn.classList.remove('btn-secondary');
+                queueControlBtn.classList.add('btn-primary');
+            }
+        }
+
+        queueControlBtn.onclick = async () => {
+            const endpoint = isQueueRunning ? '/api/queue/stop' : '/api/queue/start';
+            try {
+                const res = await fetch(endpoint, { method: 'POST' });
+                if (res.ok) {
+                    isQueueRunning = !isQueueRunning;
+                    updateQueueBtnUI();
+                }
+            } catch (err) { alert('Error cambiando estado de la cola'); }
+        };
+
         loadVoices();
         loadSessions();
+        fetchQueueStatus();
+        setInterval(loadSessions, 5000); // Refrescar lista cada 5s para ver progreso del batch
+        setInterval(fetchQueueStatus, 5000); // También refrescar el estado del botón por si cambia
     </script>
 </body>
 

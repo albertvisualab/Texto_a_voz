@@ -7,3 +7,6 @@ fitz
 pymupdf
 python-docx
 werkzeug
+EbookLib
+beautifulsoup4
+imageio-ffmpeg
