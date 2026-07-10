@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kokoro Pro - AI Text to Speech (Gapless Streaming)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #97A788;
+            --primary-hover: #7c8c6d;
+            --secondary: #D6B972;
+            --bg-gradient: linear-gradient(135deg, #F9F4EF 0%, #F3EDE4 100%);
+            --glass: rgba(255, 255, 255, 0.7);
+            --glass-bg: rgba(255, 255, 255, 0.45);
+            --glass-border: rgba(20, 19, 19, 0.08);
+            --text: #141313;
+            --text-muted: #5e5a56;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(20, 19, 19, 0.08);
+            animation: fadeIn 0.8s ease-out;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            font-weight: 300;
+        }
+
+        .input-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        textarea {
+            width: 100%;
+            height: 180px;
+            background: #ffffff;
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--text);
+            font-size: 1rem;
+            resize: none;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 4px rgba(20, 19, 19, 0.02);
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(151, 167, 136, 0.2);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        select,
+        input[type="range"] {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 10px;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        select option {
+            background: #ffffff;
+            color: var(--text);
+        }
+
+        .speed-val {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 16px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #F9F4EF;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(151, 167, 136, 0.25);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(20, 19, 19, 0.05);
+            color: var(--text);
+            border: 1px solid rgba(20, 19, 19, 0.04);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(20, 19, 19, 0.09);
+        }
+
+        /* Sidebar Session List */
+        .sidebar {
+            border-left: 1px solid var(--glass-border);
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+
+        .session-list {
+            overflow-y: auto;
+            max-height: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .session-item {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid var(--glass-border);
+            padding: 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: space-between;
+            box-shadow: 0 4px 6px -1px rgba(20, 19, 19, 0.02);
+        }
+
+        .session-item:hover {
+            box-shadow: 0 10px 15px -3px rgba(20, 19, 19, 0.05);
+            transform: translateY(-1px);
+            border-color: var(--primary);
+        }
+
+        .session-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .session-item strong {
+            display: block;
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--text);
+        }
+
+        .session-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-delete-session {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-delete-session:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .btn-rename-session {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-rename-session:hover {
+            color: #d97706;
+            background: rgba(217, 119, 6, 0.1);
+        }
+
+        .btn-download-session {
+            color: var(--primary);
+            font-size: 1.1rem;
+            text-decoration: none;
+            padding: 4px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-download-session:hover {
+            background: rgba(151, 167, 136, 0.1);
+            transform: scale(1.1);
+        }
+
+        .session-item small {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* Audio Player Styling */
+        .audio-container {
+            margin-top: 32px;
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+            grid-column: 1 / span 2;
+            padding-bottom: 20px;
+        }
+
+        .download-zone {
+            display: none;
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(151, 167, 136, 0.08);
+            border: 1px dashed var(--primary);
+            border-radius: 12px;
+            text-align: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .btn-download {
+            background: var(--primary);
+            color: #F9F4EF;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-download:hover {
+            background: var(--primary-hover);
+            transform: scale(1.05);
+        }
+
+        audio {
+            width: 100%;
+            height: 40px;
+            opacity: 0.9;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(20, 19, 19, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Mixer Styles */
+        .mixer-container {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .mixer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .mixer-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .mixer-grid {
+            display: grid;
+            grid-template-columns: 1fr 80px 1fr;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .mixer-voice-col {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .mixer-weight-display {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .mixer-slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .preview-mini-btn {
+            background: rgba(151, 167, 136, 0.15);
+            border: 1px solid var(--primary);
+            color: var(--text);
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preview-mini-btn:hover {
+            background: var(--primary);
+            color: #F9F4EF;
+        }
+
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 280px 1fr 300px;
+            gap: 20px;
+        }
+
+        .settings-sidebar {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px -15px rgba(20, 19, 19, 0.05);
+            height: fit-content;
+        }
+
+        .settings-sidebar h3 {
+            margin-top: 0;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr 300px;
+            }
+            .settings-sidebar {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sidebar {
+            border-left: 1px solid var(--glass-border);
+            padding-left: 20px;
+        }
+
+        /* Reading Mode / Karaoke */
+        .reading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-gradient);
+            z-index: 1000;
+            padding: 40px;
+            overflow-y: hidden;
+            flex-direction: column;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .reading-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 0 20px;
+        }
+
+        .btn-close-reading {
+            background: rgba(20, 19, 19, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text);
+            padding: 10px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-close-reading:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .reading-content {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 60px;
+            overflow-y: auto;
+            font-size: 1.8rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+            scroll-behavior: smooth;
+            text-align: center;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            box-shadow: 0 20px 40px -15px rgba(20, 19, 19, 0.05);
+        }
+
+        .reading-content span {
+            transition: all 0.3s ease;
+            position: relative;
+            display: inline-block;
+            margin: 0 4px;
+        }
+
+        .reading-content span.highlight {
+            color: var(--text);
+            text-shadow: 0 0 20px rgba(214, 185, 114, 0.4);
+            transform: scale(1.05);
+            font-weight: 600;
+            border-bottom: 3px solid var(--secondary);
+        }
+
+        .reading-content span.past {
+            color: #bdafa4;
+        }
+
+        .reading-footer {
+            margin-top: 30px;
+            padding: 0 20px;
+            text-align: center;
+        }
+
+        .reading-stats {
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        /* Ambient light effect for reading */
+        .ambient-light {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(214, 185, 114, 0.12) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        @media (max-width: 768px) {
+            .reading-content {
+                font-size: 1.3rem;
+                padding: 30px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Panel Izquierdo: Ajustes -->
+        <aside class="settings-sidebar">
+            <h3>⚙️ Configuración Global</h3>
+            
+            <div class="input-group">
+                <label>Modo de Lectura</label>
+                <select id="reading-mode" style="width: 100%; padding: 8px; background: #ffffff; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text);">
+                    <option value="fluid">Fluida (Sin Pausas)</option>
+                    <option value="natural">Natural (Con Pausas 1s)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Formato de Salida</label>
+                <select id="output-format" style="width: 100%; padding: 8px; background: #ffffff; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text);">
+                    <option value="wav">WAV (Máxima Calidad)</option>
+                    <option value="mp3">MP3 (Comprimido)</option>
+                </select>
+            </div>
+
+            <div class="input-group" id="bitrate-group" style="display: none;">
+                <label>Calidad MP3</label>
+                <select id="bitrate" style="width: 100%; padding: 8px; background: #ffffff; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text);">
+                    <option value="128k">128 kbps</option>
+                    <option value="192k" selected>192 kbps (Recomendado)</option>
+                    <option value="320k">320 kbps (Alta)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label for="voice" style="margin-bottom: 0;">Voz Principal</label>
+                    <label style="font-size: 0.75rem; color: var(--primary); display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                        <input type="checkbox" id="use-mixer" style="margin:0;"> Mezclador
+                    </label>
+                </div>
+                
+                <div id="single-voice-container" style="margin-top: 8px;">
+                    <select id="voice"></select>
+                </div>
+
+                <div id="mixer-section" style="display: none; margin-top: 8px; background: rgba(255,255,255,0.4); padding: 10px; border-radius: 8px; border: 1px dashed var(--glass-border);">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.7rem; color: var(--text-muted);">Voz A (Izq)</label>
+                            <select id="voice-a"></select>
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.7rem; color: var(--text-muted);">Voz B (Der)</label>
+                            <select id="voice-b"></select>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 0.75rem;">
+                        <span id="weight-a-display" style="color: var(--primary);">50%</span>
+                        <span style="color: #94a3b8;">Balance</span>
+                        <span id="weight-b-display" style="color: var(--secondary);">50%</span>
+                    </div>
+                    <input type="range" id="mixer-ratio" min="0" max="100" value="50" style="width: 100%;">
+                    
+                    <button id="preview-blend-btn" class="btn-secondary" style="width: 100%; padding: 4px; font-size: 0.75rem; margin-top: 8px;">
+                        🔊 Escuchar Mezcla
+                    </button>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <div style="display: flex; justify-content: space-between;">
+                    <label for="speed">Velocidad</label>
+                    <span id="speed-display" style="color: var(--primary); font-weight: bold;">1x</span>
+                </div>
+                <input type="range" id="speed" min="0.5" max="2" step="0.1" value="1">
+            </div>
+        </aside>
+
+        <!-- Panel Central: Conversión -->
+        <main>
+            <h1>Kokoro Pro AI</h1>
+            <p class="subtitle" style="display: flex; gap: 10px; align-items: center;">
+                Generador de Audiolibros
+            </p>
+
+            <div class="input-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label style="margin-bottom: 0;">Texto o Archivo</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="file" id="file-input" accept=".pdf,.docx,.txt,.epub" multiple style="display: none;">
+                        <button id="upload-btn" class="btn-secondary"
+                            style="padding: 6px 12px; font-size: 0.75rem; flex: none;">
+                            📄 Subir
+                        </button>
+                    </div>
+                </div>
+                <textarea id="text" placeholder="Escribe aquí o sube un libro..."></textarea>
+            </div>
+
+
+
+            <div class="actions" style="margin-bottom: 24px;">
+                <button id="generate-btn" class="btn-primary">
+                    <span class="loading-spinner" id="spinner"></span>
+                    <span id="btn-text">Añadir a la Cola</span>
+                </button>
+                <button id="open-import-btn" class="btn-secondary" style="flex: 0.4;">
+                    🎤 Importar Audio
+                </button>
+            </div>
+
+            <!-- Import Modal -->
+            <div id="import-modal"
+                style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(20, 19, 19, 0.4); z-index: 2000; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px);">
+                <div class="container"
+                    style="max-width: 500px; grid-template-columns: 1fr; border-color: var(--primary); background: #FAF7F2;">
+                    <h2 style="margin-bottom: 15px; color: var(--primary);">Importar para Karaoke</h2>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">
+                        Sube un audio y su texto correspondiente para usar el modo karaoke.
+                    </p>
+
+                    <div class="input-group">
+                        <label>1. Archivo de Audio (WAV/MP3)</label>
+                        <input type="file" id="import-audio" accept="audio/*" class="btn-secondary"
+                            style="width: 100%; padding: 8px;">
+                    </div>
+
+                    <div class="input-group">
+                        <label>2. Texto (PDF/DOCX/TXT/EPUB)</label>
+                        <input type="file" id="import-text" accept=".pdf,.docx,.txt,.epub" class="btn-secondary"
+                            style="width: 100%; padding: 8px;">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Nombre del Proyecto</label>
+                        <input type="text" id="import-name" placeholder="Ej: Mi Audiolibro"
+                            style="width: 100%; background: #ffffff; border: 1px solid var(--glass-border); padding: 10px; border-radius: 8px; color: var(--text);">
+                    </div>
+
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 20px;">
+                        * Se usará la voz seleccionada actualmente para estimar los tiempos del karaoke.
+                    </div>
+
+                    <div class="actions">
+                        <button id="close-import-btn" class="btn-secondary">Cancelar</button>
+                        <button id="do-import-btn" class="btn-primary">
+                            <span class="loading-spinner" id="import-spinner" style="display: none;"></span>
+                            Confirmar Importación
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <aside class="sidebar">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #818cf8; font-size: 1.1rem; flex: 1; min-width: max-content;">Cola de Trabajo</h3>
+                <button id="queue-control-btn" class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; flex: 0 0 auto;">
+                    ▶️ Iniciar Cola
+                </button>
+            </div>
+            <div id="session-list" class="session-list">
+                <p style="font-size: 0.8rem; color: #475569;">Cargando sesiones...</p>
+            </div>
+        </aside>
+
+        <div class="audio-container" id="audio-container">
+            <div id="status-bar" style="margin-bottom: 4px; font-size: 0.85rem; color: #818cf8; font-weight: 300;">
+            </div>
+            <div id="buffer-status" style="margin-bottom: 12px; font-size: 0.75rem; color: #94a3b8; font-weight: 300;">
+            </div>
+            <label id="player-label" style="font-weight: 600; color: #cbd5e1;"></label>
+            <div id="players-wrapper" style="position: relative; height: 40px; margin-top: 8px;">
+                <audio id="audio-player-a" style="width: 100%; position: absolute; top:0; left:0;"></audio>
+                <audio id="audio-player-b"
+                    style="width: 100%; position: absolute; top:0; left:0; display: none;"></audio>
+            </div>
+            <div id="download-zone" class="download-zone">
+                <p style="margin-bottom: 10px; font-size: 0.9rem; color: #cbd5e1;">¡Conversión completa! Ya puedes
+                    descargar el audio completo.</p>
+                <a id="download-link" href="#" class="btn-download">
+                    📥 Descargar WAV Completo
+                </a>
+            </div>
+
+            <button id="open-reading-btn" class="btn-primary"
+                style="margin-top: 20px; width: auto; align-self: center; display: none;">
+                📖 Abrir Modo Lectura (Karaoke)
+            </button>
+        </div>
+    </div>
+
+    <!-- Modo Lectura / Karaoke -->
+    <div id="reading-overlay" class="reading-overlay">
+        <div class="ambient-light"></div>
+        <div class="reading-header">
+            <div>
+                <h2 id="reading-title" style="color: #fff; font-size: 1.5rem;">Visualizador de Lectura</h2>
+                <div id="reading-subtitle" style="color: #818cf8; font-size: 0.9rem;">Sincronización Inteligente</div>
+            </div>
+            <button id="close-reading-btn" class="btn-close-reading">Cerrar</button>
+        </div>
+        <div id="reading-content" class="reading-content">
+            <!-- El texto se cargará aquí dinámicamente -->
+        </div>
+        <div class="reading-footer">
+            <div id="reading-stats" class="reading-stats">Parte 1 de 10 - 0:00</div>
+            <div style="max-width: 600px; margin: 0 auto;">
+                <audio id="reading-player" style="width: 100%; height: 40px;"></audio>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const voiceSelect = document.getElementById('voice');
+        const generateBtn = document.getElementById('generate-btn');
+        const textInput = document.getElementById('text');
+        const speedInput = document.getElementById('speed');
+        const speedDisplay = document.getElementById('speed-display');
+        const playerA = document.getElementById('audio-player-a');
+        const playerB = document.getElementById('audio-player-b');
+        const audioContainer = document.getElementById('audio-container');
+        const spinner = document.getElementById('spinner');
+        const btnText = document.getElementById('btn-text');
+        const statusBar = document.getElementById('status-bar');
+        const bufferStatus = document.getElementById('buffer-status');
+        const playerLabel = document.getElementById('player-label');
+        const fileInput = document.getElementById('file-input');
+        const uploadBtn = document.getElementById('upload-btn');
+        const sessionList = document.getElementById('session-list');
+        const downloadZone = document.getElementById('download-zone');
+        const downloadLink = document.getElementById('download-link');
+
+        // Mixer Elements
+        const useMixerCheck = document.getElementById('use-mixer');
+        const mixerSection = document.getElementById('mixer-section');
+        const singleVoiceContainer = document.getElementById('single-voice-container');
+        const voiceA = document.getElementById('voice-a');
+        const voiceB = document.getElementById('voice-b');
+        const mixerRatio = document.getElementById('mixer-ratio');
+        const weightADisplay = document.getElementById('weight-a-display');
+        const weightBDisplay = document.getElementById('weight-b-display');
+        const previewBlendBtn = document.getElementById('preview-blend-btn');
+
+        let currentProjectId = null;
+        let totalChunks = 0;
+        let currentChunkIndex = -1;
+        let activePlayer = 'A';
+        let isSessionResumed = false; // Flag para rastrear si estamos en una sesión guardada
+
+        // --- GESTIÓN DE BUFFER ---
+        let pregenerationIndex = 0;
+        let isPregenerating = false;
+        const BUFFER_TARGET = 15; // Intentar tener 15 chunks listos en disco (agresivo)
+
+        async function loadVoices() {
+            try {
+                const res = await fetch('/api/voices');
+                const voices = await res.json();
+                const groups = {};
+                voices.forEach(v => {
+                    if (!groups[v.group]) groups[v.group] = [];
+                    groups[v.group].push(v);
+                });
+                voiceSelect.innerHTML = '';
+                voiceA.innerHTML = '';
+                voiceB.innerHTML = '';
+
+                for (const gName in groups) {
+                    const createGroup = () => {
+                        const gp = document.createElement('optgroup');
+                        gp.label = gName;
+                        return gp;
+                    };
+
+                    const group = createGroup();
+                    const groupA = createGroup();
+                    const groupB = createGroup();
+
+                    groups[gName].forEach(v => {
+                        const createOpt = () => {
+                            const opt = document.createElement('option');
+                            opt.value = v.id;
+                            opt.textContent = v.label;
+                            opt.dataset.lang = v.lang;
+                            return opt;
+                        };
+
+                        const opt = createOpt();
+                        const optA = createOpt();
+                        const optB = createOpt();
+
+                        if (v.id === 'em_alex') opt.selected = true;
+                        if (v.id === 'ef_dora') optA.selected = true;
+                        if (v.id === 'em_alex') optB.selected = true;
+
+                        group.appendChild(opt);
+                        groupA.appendChild(optA);
+                        groupB.appendChild(optB);
+                    });
+
+                    voiceSelect.appendChild(group);
+                    voiceA.appendChild(groupA);
+                    voiceB.appendChild(groupB);
+                }
+            } catch (err) { console.error('Error cargando voces', err); }
+        }
+
+        async function loadSessions() {
+            try {
+                const res = await fetch('/api/projects');
+                const projects = await res.json();
+                sessionList.innerHTML = '';
+                if (projects.length === 0) {
+                    sessionList.innerHTML = '<p style="font-size: 0.8rem; color: #475569;">No hay sesiones.</p>';
+                }
+                projects.sort((a, b) => b.id.localeCompare(a.id)).forEach(p => {
+                    const progress = Math.round((p.completed_chunks / p.total_chunks) * 100);
+                    const item = document.createElement('div');
+                    item.className = `session-item ${currentProjectId === p.id ? 'active' : ''}`;
+                    item.onclick = () => resumeProject(p);
+
+                    let actionsHtml = '';
+                    actionsHtml += `
+                        <button class="btn-rename-session" onclick="renameSession(event, '${p.id}', '${p.name.replace(/'/g, "\\'")}')" title="Renombrar">
+                            ✏️
+                        </button>
+                    `;
+                    if (p.is_finished) {
+                        actionsHtml += `
+                            <a href="/api/projects/${p.id}/download" class="btn-download-session" 
+                                onclick="event.stopPropagation()" title="Descargar WAV completo">
+                                📥
+                            </a>
+                        `;
+                    }
+                    actionsHtml += `
+                        <button class="btn-delete-session" onclick="deleteSession(event, '${p.id}')" title="Eliminar lectura">
+                            ×
+                        </button>
+                    `;
+
+                    item.innerHTML = `
+                        <div class="session-info">
+                            <strong>${p.name}</strong>
+                            <small>${p.total_chunks} fragmentos - ${progress}%</small>
+                        </div>
+                        <div class="session-actions">
+                            ${actionsHtml}
+                        </div>
+                    `;
+                    sessionList.appendChild(item);
+                });
+            } catch (err) { console.error('Error cargando sesiones', err); }
+        }
+
+        async function deleteSession(event, projectId) {
+            event.stopPropagation();
+            if (!confirm('¿Seguro que quieres eliminar esta lectura?')) return;
+
+            try {
+                const res = await fetch(`/api/projects/${projectId}/delete`, { method: 'DELETE' });
+                if (res.ok) {
+                    if (currentProjectId === projectId) {
+                        currentProjectId = null;
+                        audioContainer.style.display = 'none';
+                        textInput.value = '';
+                    }
+                    loadSessions();
+                } else {
+                    alert('Error al eliminar');
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function renameSession(event, projectId, oldName) {
+            event.stopPropagation();
+            const newName = prompt('Nuevo nombre para esta lectura:', oldName);
+            if (!newName || newName === oldName) return;
+
+            try {
+                const res = await fetch(`/api/projects/${projectId}/rename`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                });
+                if (res.ok) {
+                    loadSessions();
+                } else {
+                    alert('Error al renombrar');
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // Sistema de Pre-generación Agresiva
+        async function runPregenerator() {
+            if (isPregenerating || !currentProjectId) return;
+            
+            if (!isQueueRunning) {
+                bufferStatus.textContent = "⏸️ Cola pausada. Inicia la cola en el panel derecho.";
+                setTimeout(runPregenerator, 1500);
+                return;
+            }
+
+            isPregenerating = true;
+
+            try {
+                const targetId = currentProjectId;
+                // Fetch project details to get current chunk statuses
+                const resP = await fetch(`/api/projects/${targetId}`);
+                const p = await resP.json();
+
+                // Seguridad: si el usuario cambió de proyecto durante el fetch, abortar
+                if (targetId !== currentProjectId) {
+                    isPregenerating = false;
+                    return;
+                }
+
+                if (!p || !p.chunks) throw new Error('Project data not found');
+
+                // Sincronizar pregenerationIndex con la realidad si es necesario
+                // (por si el servidor terminó chunks mientras estábamos en pausa)
+                let actualCompleted = p.completed_chunks;
+                if (pregenerationIndex < actualCompleted) {
+                    pregenerationIndex = actualCompleted;
+                }
+
+                // Saltear los ya completados
+                while (pregenerationIndex < totalChunks && p.chunks[pregenerationIndex].status === 'completed') {
+                    pregenerationIndex++;
+                }
+
+                if (pregenerationIndex >= totalChunks || p.is_finished) {
+                    bufferStatus.textContent = `✓ Lectura totalmente preparada (${totalChunks} partes).`;
+                    showDownloadButton();
+                    isPregenerating = false;
+                    return;
+                }
+
+                const idx = pregenerationIndex;
+                const statusText = p.chunks[idx].status === 'error' ? 'Reintentando' : 'Preparando';
+                bufferStatus.textContent = `⚡ Buffer: ${statusText} parte ${idx + 1}/${totalChunks}...`;
+
+                const res = await fetch(`/api/projects/${currentProjectId}/chunk/${idx}/prepare`, { method: 'POST' });
+                if (res.ok) {
+                    if (targetId === currentProjectId) {
+                        pregenerationIndex++;
+                        if (idx === currentChunkIndex + 1) preloadNextAudio();
+                    }
+                }
+            } catch (err) {
+                console.error("Error en pregeneración:", err);
+                bufferStatus.textContent = "⚠️ Error de conexión en el buffer. Reintentando...";
+            }
+
+            isPregenerating = false;
+            if (currentProjectId) setTimeout(runPregenerator, 1500);
+        }
+
+        function preloadNextAudio() {
+            const nextIdx = currentChunkIndex + 1;
+            if (nextIdx >= totalChunks) return;
+
+            const inactivePlayer = activePlayer === 'A' ? playerB : playerA;
+            // No cargamos si ya tiene la ruta correcta
+            const targetSrc = `${window.location.origin}/api/projects/${currentProjectId}/chunk/${nextIdx}`;
+            if (!inactivePlayer.src.includes(targetSrc)) {
+                console.log(`Pre-cargando audio para chunk ${nextIdx}`);
+                inactivePlayer.src = targetSrc;
+                inactivePlayer.load();
+            }
+        }
+
+        async function playNextChunk() {
+            const nextIdx = currentChunkIndex + 1;
+            if (nextIdx >= totalChunks) {
+                statusBar.textContent = "✓ Lectura completada.";
+                showDownloadButton();
+                return;
+            }
+
+            const currentPlayer = activePlayer === 'A' ? playerA : playerB;
+            const nextPlayer = activePlayer === 'A' ? playerB : playerA;
+
+            currentChunkIndex = nextIdx;
+
+            // Persistir progreso en el servidor
+            if (currentProjectId) {
+                fetch(`/api/projects/${currentProjectId}/last_chunk`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ last_chunk: currentChunkIndex })
+                }).catch(err => console.error("Error guardando progreso:", err));
+            }
+
+            // Si el audio aún no está en el player (porque el pregenerador va lento), forzar carga
+            const targetSrc = `${window.location.origin}/api/projects/${currentProjectId}/chunk/${currentChunkIndex}`;
+            if (!currentPlayer.src.includes(targetSrc)) {
+                statusBar.textContent = `⌛ Esperando audio parte ${nextIdx + 1}...`;
+                currentPlayer.src = targetSrc;
+                await currentPlayer.load();
+            }
+
+            audioContainer.style.display = 'block';
+            currentPlayer.style.display = 'block';
+            currentPlayer.controls = true;
+            nextPlayer.style.display = 'none';
+
+            playerLabel.textContent = `🔊 Leyendo parte ${currentChunkIndex + 1} de ${totalChunks}`;
+
+            try {
+                await currentPlayer.play();
+                statusBar.textContent = "✓ Reproducción iniciada.";
+            } catch (err) {
+                statusBar.textContent = "Buffer listo. Por favor, haz clic en el botón Play para empezar.";
+                console.warn("Autoplay bloqueado. Esperando clic del usuario.");
+            }
+
+            // Inmediatamente pre-cargar el SIGUIENTE en el reproductor inactivo
+            preloadNextAudio();
+
+            currentPlayer.onended = () => {
+                activePlayer = activePlayer === 'A' ? 'B' : 'A';
+                playNextChunk();
+                loadSessions();
+            };
+        }
+
+        async function initializeProject(project, isResuming) {
+            currentProjectId = project.id;
+            totalChunks = project.total_chunks;
+
+            // Si el proyecto esta terminado, empezamos de nuevo o desde el ultimo punto guardado
+            currentChunkIndex = (project.last_chunk || 0) - 1;
+            // Si por algun motivo el indice es invalido, resetear a -1 (empezar de 0)
+            if (currentChunkIndex < -1 || currentChunkIndex >= totalChunks - 1) {
+                currentChunkIndex = -1;
+            }
+
+            pregenerationIndex = project.completed_chunks;
+            isSessionResumed = true;
+
+            if (isResuming) {
+                textInput.value = "Sesión recuperada: " + project.name;
+            } else {
+                textInput.value = "Sesión recuperada: " + project.name;
+            }
+
+            audioContainer.style.display = 'block';
+            updateControlBtn(false);
+            loadSessions();
+            runPregenerator();
+
+            if (project.is_finished) {
+                showDownloadButton();
+                playNextChunk(); // Ahora si funcionara porque currentChunkIndex no es el final
+            } else {
+                downloadZone.style.display = 'none';
+
+                // Indicar en el botón que estamos cargando
+                btnText.textContent = "Cargando Lectura...";
+                generateBtn.classList.remove('btn-primary');
+                generateBtn.classList.add('btn-secondary');
+
+                // Esperar a que el buffer tenga al menos el actual + 3 siguientes
+                statusBar.textContent = "⏳ Preparando primera parte y buffer de seguridad...";
+
+                const waitBuffer = async () => {
+                    if (currentProjectId !== project.id) return;
+
+                    const targetBuffer = Math.min(totalChunks, currentChunkIndex + 3);
+                    const isReady = pregenerationIndex >= targetBuffer;
+
+                    if (isReady) {
+                        playNextChunk();
+                    } else {
+                        if (!isQueueRunning) {
+                            statusBar.textContent = "⏸️ Cola pausada. Inicia la cola para continuar la reproducción.";
+                        } else {
+                            statusBar.textContent = `⏳ Llenando buffer: ${pregenerationIndex}/${targetBuffer} listos...`;
+                        }
+                        setTimeout(waitBuffer, 1000);
+                    }
+                };
+                waitBuffer();
+            }
+        }
+
+        async function resumeProject(project) {
+            // DESBLOQUEO: Primar los reproductores con el gesto del click
+            playerA.play().then(() => playerA.pause()).catch(() => { });
+            playerB.play().then(() => playerB.pause()).catch(() => { });
+
+            initializeProject(project, true);
+        }
+
+        function showDownloadButton() {
+            downloadLink.href = `/api/projects/${currentProjectId}/download`;
+            downloadZone.style.display = 'block';
+        }
+
+        function updateControlBtn(isPlaying) {
+            generateBtn.disabled = false;
+            if (isPlaying) {
+                btnText.textContent = "Detener Lectura";
+                generateBtn.classList.remove('btn-primary');
+                generateBtn.classList.add('btn-secondary');
+            } else {
+                btnText.textContent = "Continuar Lectura";
+                generateBtn.classList.remove('btn-secondary');
+                generateBtn.classList.add('btn-primary');
+            }
+        }
+
+        // Sync button states with players
+        [playerA, playerB].forEach(p => {
+            p.addEventListener('play', () => updateControlBtn(true));
+            p.addEventListener('pause', () => updateControlBtn(false));
+            p.addEventListener('ended', () => {
+                if (currentChunkIndex >= totalChunks - 1) updateControlBtn(false);
+            });
+        });
+
+        // --- EVENTOS DEL MEZCLADOR Y AJUSTES ---
+        const outputFormat = document.getElementById('output-format');
+        const bitrateGroup = document.getElementById('bitrate-group');
+        outputFormat.onchange = () => {
+            bitrateGroup.style.display = outputFormat.value === 'mp3' ? 'block' : 'none';
+        };
+
+        useMixerCheck.onchange = () => {
+            mixerSection.style.display = useMixerCheck.checked ? 'block' : 'none';
+            singleVoiceContainer.style.display = useMixerCheck.checked ? 'none' : 'block';
+        };
+
+        mixerRatio.oninput = () => {
+            const val = mixerRatio.value;
+            weightADisplay.textContent = `${val}%`;
+            weightBDisplay.textContent = `${100 - val}%`;
+        };
+
+        previewBlendBtn.onclick = async () => {
+            const text = "Hola, esta es una prueba de mi voz personalizada.";
+            const weightA = mixerRatio.value / 100;
+            const weightB = (100 - mixerRatio.value) / 100;
+            const voiceSpec = `${voiceA.value}:${weightA.toFixed(2)},${voiceB.value}:${weightB.toFixed(2)}`;
+            const lang = voiceA.options[voiceA.selectedIndex].dataset.lang;
+
+            previewBlendBtn.disabled = true;
+            previewBlendBtn.textContent = "⏳...";
+
+            try {
+                const res = await fetch('/api/speak', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        voice: voiceSpec,
+                        speed: 1.0,
+                        lang: lang
+                    })
+                });
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                audio.play();
+            } catch (err) {
+                alert('Error en previsualización');
+            } finally {
+                previewBlendBtn.disabled = false;
+                previewBlendBtn.textContent = "Escuchar Mezcla";
+            }
+        };
+
+        textInput.oninput = () => {
+            // Si el usuario cambia el texto, habilitar de nuevo la creación de proyecto
+            if (isSessionResumed && !textInput.value.startsWith("Sesión recuperada:")) {
+                isSessionResumed = false;
+                currentProjectId = null;
+                btnText.textContent = "Comenzar Lectura Fluida";
+                generateBtn.classList.remove('btn-secondary');
+                generateBtn.classList.add('btn-primary');
+            }
+        };
+
+        speedInput.oninput = () => speedDisplay.textContent = speedInput.value + 'x';
+        uploadBtn.onclick = () => fileInput.click();
+
+        fileInput.onchange = async (e) => {
+            const files = e.target.files;
+            if (files.length === 0) return;
+            
+            if (files.length === 1) {
+                // Un solo archivo: extraer texto y poner en el textarea
+                const formData = new FormData();
+                formData.append('file', files[0]);
+                uploadBtn.textContent = '...';
+                try {
+                    const res = await fetch('/api/extract', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.text) textInput.value = data.text;
+                } catch (err) { alert('Error subiendo archivo'); }
+                finally { uploadBtn.textContent = '📄 Subir'; }
+            } else {
+                // Múltiples archivos: enviarlos directamente a la cola
+                uploadBtn.textContent = 'Añadiendo...';
+                const formData = new FormData();
+                for(let i=0; i<files.length; i++) {
+                    formData.append('files', files[i]);
+                }
+                
+                let voiceFinal = voiceSelect.value;
+                let langFinal = voiceSelect.options[voiceSelect.selectedIndex].dataset.lang;
+                if (useMixerCheck.checked) {
+                    const weightA = mixerRatio.value / 100;
+                    const weightB = (100 - mixerRatio.value) / 100;
+                    voiceFinal = `${voiceA.value}:${weightA.toFixed(2)},${voiceB.value}:${weightB.toFixed(2)}`;
+                    langFinal = voiceA.options[voiceA.selectedIndex].dataset.lang;
+                }
+                formData.append('voice', voiceFinal);
+                formData.append('speed', speedInput.value);
+                formData.append('lang', langFinal);
+                formData.append('reading_mode', document.getElementById('reading-mode').value);
+
+                try {
+                    const res = await fetch('/api/batch/add', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.status === "queued") {
+                        loadSessions();
+                        // No mostramos alert molesto, solo limpiamos el input para poder subir más
+                    } else {
+                        alert('Error al enviar lote: ' + data.error);
+                    }
+                } catch(err) { alert('Error al enviar lote'); }
+                finally { 
+                    uploadBtn.textContent = '📄 Subir'; 
+                    fileInput.value = '';
+                }
+            }
+        };
+
+        // --- DRAG AND DROP ---
+        const dropZone = document.getElementById('text');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--primary)';
+        });
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--glass-border)';
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--glass-border)';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        generateBtn.onclick = async () => {
+            // DESBLOQUEO INMEDIATO: Capturar el gesto del usuario al instante
+            playerA.play().then(() => playerA.pause()).catch(() => { });
+            playerB.play().then(() => playerB.pause()).catch(() => { });
+
+            const text = textInput.value;
+            if (!text.trim()) return alert('Escribe algo');
+
+            // Toggle Play/Pause si es una sesión activa
+            if (currentProjectId && isSessionResumed) {
+                const currentPlayer = activePlayer === 'A' ? playerA : playerB;
+                if (currentPlayer.paused) {
+                    currentPlayer.play().catch(() => {
+                        statusBar.textContent = "Haz clic en el Play del reproductor para iniciar.";
+                    });
+                } else {
+                    currentPlayer.pause();
+                }
+                return;
+            }
+
+            // DESBLOQUEO: Primar reproductores ante el gesto de click
+            playerA.play().then(() => playerA.pause()).catch(() => { });
+            playerB.play().then(() => playerB.pause()).catch(() => { });
+
+            generateBtn.disabled = true;
+            spinner.style.display = 'block';
+            btnText.textContent = 'Inicializando...';
+
+            let voiceFinal = voiceSelect.value;
+            let langFinal = voiceSelect.options[voiceSelect.selectedIndex].dataset.lang;
+
+            if (useMixerCheck.checked) {
+                const weightA = mixerRatio.value / 100;
+                const weightB = (100 - mixerRatio.value) / 100;
+                voiceFinal = `${voiceA.value}:${weightA.toFixed(2)},${voiceB.value}:${weightB.toFixed(2)}`;
+                langFinal = voiceA.options[voiceA.selectedIndex].dataset.lang;
+            }
+
+            const payload = {
+                name: text.substring(0, 30),
+                text: text,
+                voice: voiceFinal,
+                speed: speedInput.value,
+                lang: langFinal,
+                reading_mode: document.getElementById('reading-mode').value
+            };
+
+            try {
+                const res = await fetch('/api/projects/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.project_id) {
+                    textInput.value = ''; // Limpiar el área de texto tras enviar a la cola
+                    loadSessions();
+                }
+            } catch (err) { alert('Error al iniciar'); }
+            finally {
+                generateBtn.disabled = false;
+                spinner.style.display = 'none';
+                btnText.textContent = 'Añadir a la Cola';
+            }
+        };
+
+        const openReadingBtn = document.getElementById('open-reading-btn');
+        const readingOverlay = document.getElementById('reading-overlay');
+        const closeReadingBtn = document.getElementById('close-reading-btn');
+        const readingContent = document.getElementById('reading-content');
+        const readingTitle = document.getElementById('reading-title');
+        const readingStats = document.getElementById('reading-stats');
+        const readingCloseBtn = document.getElementById('close-reading-btn');
+
+        // Controles de reproducción en modo lectura
+        const readingPlayBtn = document.createElement('button');
+        readingPlayBtn.innerHTML = '⏸️ Pausar';
+        readingPlayBtn.className = 'btn-primary';
+        readingPlayBtn.style.width = 'auto';
+        readingPlayBtn.style.margin = '10px auto';
+        document.querySelector('.reading-footer').prepend(readingPlayBtn);
+
+        readingPlayBtn.onclick = () => {
+            const currentPlayer = activePlayer === 'A' ? playerA : playerB;
+            if (currentPlayer.paused) {
+                currentPlayer.play();
+                readingPlayBtn.innerHTML = '⏸️ Pausar';
+            } else {
+                currentPlayer.pause();
+                readingPlayBtn.innerHTML = '▶️ Reanudar';
+            }
+        };
+
+        let karaokeMetadata = [];
+        let currentChunkMetadata = null;
+        let lastMetadataFetchIdx = -1;
+
+        // --- LÓGICA DE KARAOKE ---
+
+        async function fetchChunkMetadata(index) {
+            if (currentProjectId === null) return;
+            if (lastMetadataFetchIdx === index && currentChunkMetadata) return;
+            try {
+                const res = await fetch(`/api/projects/${currentProjectId}/chunk/${index}/metadata`);
+                if (res.ok) {
+                    currentChunkMetadata = await res.json();
+                    lastMetadataFetchIdx = index;
+                    renderReadingContent();
+                } else {
+                    // Fallback si no hay metadata: mostrar el texto del chunk sin karaoke fino
+                    const projRes = await fetch(`/api/projects/${currentProjectId}`);
+                    const proj = await projRes.json();
+                    if (proj.chunks && proj.chunks[index]) {
+                        currentChunkMetadata = [{ text: proj.chunks[index], duration: 9999 }];
+                        renderReadingContent();
+                    }
+                }
+            } catch (err) { console.error("Error fetching metadata:", err); }
+        }
+
+        function renderReadingContent() {
+            if (!currentChunkMetadata) return;
+            readingContent.innerHTML = '';
+            currentChunkMetadata.forEach((item, idx) => {
+                const span = document.createElement('span');
+                span.id = `sub-chunk-${idx}`;
+                span.textContent = item.text + " ";
+                readingContent.appendChild(span);
+            });
+            readingContent.scrollTop = 0;
+        }
+
+        function updateKaraokeHighlight(currentTime) {
+            if (!currentChunkMetadata || currentChunkMetadata.length === 0) return;
+
+            let elapsed = 0;
+            let activeIdx = -1;
+
+            for (let i = 0; i < currentChunkMetadata.length; i++) {
+                const item = currentChunkMetadata[i];
+                if (currentTime >= elapsed && currentTime < elapsed + item.duration) {
+                    activeIdx = i;
+                    break;
+                }
+                elapsed += item.duration;
+            }
+
+            // Fallbacks de resaltado
+            if (activeIdx === -1 && currentTime > 0) activeIdx = currentChunkMetadata.length - 1;
+            if (activeIdx === -1) activeIdx = 0;
+
+            const spans = readingContent.querySelectorAll('span');
+            spans.forEach((span, idx) => {
+                if (idx === activeIdx) {
+                    if (!span.classList.contains('highlight')) {
+                        span.className = 'highlight';
+                        span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else if (idx < activeIdx) {
+                    span.className = 'past';
+                } else {
+                    span.className = '';
+                }
+            });
+
+            const totalDur = elapsed + (currentChunkMetadata[activeIdx]?.duration || 0);
+            readingStats.textContent = `Parte ${currentChunkIndex + 1} de ${totalChunks} — ${Math.round(currentTime)}s / ${Math.round(totalDur)}s`;
+
+            // Sincronizar texto del botón
+            const currentPlayer = activePlayer === 'A' ? playerA : playerB;
+            readingPlayBtn.innerHTML = currentPlayer.paused ? '▶️ Reanudar' : '⏸️ Pausar';
+        }
+
+        // Integrar con los reproductores existentes
+        [playerA, playerB].forEach(p => {
+            p.addEventListener('timeupdate', () => {
+                const isActive = (activePlayer === 'A' && p === playerA) || (activePlayer === 'B' && p === playerB);
+                if (isActive && readingOverlay.style.display === 'flex') {
+                    updateKaraokeHighlight(p.currentTime);
+                }
+            });
+
+            p.addEventListener('play', () => {
+                if (currentProjectId) fetchChunkMetadata(currentChunkIndex);
+            });
+        });
+
+        openReadingBtn.onclick = () => {
+            readingOverlay.style.display = 'flex';
+            const nativeAudio = document.getElementById('reading-player');
+            if (nativeAudio) nativeAudio.style.display = 'none';
+            readingTitle.textContent = "Lectura: " + (document.querySelector('.session-item.active strong')?.textContent || "Documento");
+            fetchChunkMetadata(currentChunkIndex);
+        };
+
+        closeReadingBtn.onclick = () => {
+            readingOverlay.style.display = 'none';
+        };
+
+        // Mostrar botón de lectura cuando hay un proyecto activo
+        const originalInitializeProject = initializeProject;
+        initializeProject = async (project, isResuming) => {
+            await originalInitializeProject(project, isResuming);
+            openReadingBtn.style.display = 'inline-flex';
+        };
+
+        // --- LÓGICA DE IMPORTACIÓN ---
+        const openImportBtn = document.getElementById('open-import-btn');
+        const closeImportBtn = document.getElementById('close-import-btn');
+        const importModal = document.getElementById('import-modal');
+        const doImportBtn = document.getElementById('do-import-btn');
+        const importSpinner = document.getElementById('import-spinner');
+
+        openImportBtn.onclick = () => importModal.style.display = 'flex';
+        closeImportBtn.onclick = () => importModal.style.display = 'none';
+
+        doImportBtn.onclick = async () => {
+            const audioFile = document.getElementById('import-audio').files[0];
+            const textFile = document.getElementById('import-text').files[0];
+            const name = document.getElementById('import-name').value || "Importado";
+
+            if (!audioFile || !textFile) return alert('Selecciona ambos archivos (Audio y Texto/PDF)');
+
+            doImportBtn.disabled = true;
+            importSpinner.style.display = 'inline-block';
+
+            let voiceFinal = voiceSelect.value;
+            let langFinal = voiceSelect.options[voiceSelect.selectedIndex].dataset.lang;
+
+            if (useMixerCheck.checked) {
+                const weightA = mixerRatio.value / 100;
+                const weightB = (100 - mixerRatio.value) / 100;
+                voiceFinal = `${voiceA.value}:${weightA.toFixed(2)},${voiceB.value}:${weightB.toFixed(2)}`;
+                langFinal = voiceA.options[voiceA.selectedIndex].dataset.lang;
+            }
+
+            const formData = new FormData();
+            formData.append('audio', audioFile);
+            formData.append('text', textFile);
+            formData.append('name', name);
+            formData.append('voice', voiceFinal);
+            formData.append('speed', speedInput.value);
+            formData.append('lang', langFinal);
+            formData.append('reading_mode', document.getElementById('reading-mode').value);
+
+            try {
+                const res = await fetch('/api/projects/import', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.project_id) {
+                    importModal.style.display = 'none';
+                    loadSessions();
+                    alert('Proyecto importado con éxito. Ahora puedes seleccionarlo en la lista lateral.');
+                    // Limpiar campos
+                    document.getElementById('import-audio').value = '';
+                    document.getElementById('import-text').value = '';
+                    document.getElementById('import-name').value = '';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) {
+                alert('Error al importar: ' + err.message);
+            } finally {
+                doImportBtn.disabled = false;
+                importSpinner.style.display = 'none';
+            }
+        };
+
+        // --- LÓGICA DE CONTROL DE COLA ---
+        const queueControlBtn = document.getElementById('queue-control-btn');
+        let isQueueRunning = false;
+
+        async function fetchQueueStatus() {
+            try {
+                const res = await fetch('/api/queue/status');
+                const data = await res.json();
+                isQueueRunning = data.is_running;
+                updateQueueBtnUI();
+            } catch (err) {}
+        }
+
+        function updateQueueBtnUI() {
+            if (isQueueRunning) {
+                queueControlBtn.innerHTML = '⏸️ Pausar Cola';
+                queueControlBtn.classList.remove('btn-primary');
+                queueControlBtn.classList.add('btn-secondary');
+            } else {
+                queueControlBtn.innerHTML = '▶️ Iniciar Cola';
+                queueControlBtn.classList.remove('btn-secondary');
+                queueControlBtn.classList.add('btn-primary');
+            }
+        }
+
+        queueControlBtn.onclick = async () => {
+            const endpoint = isQueueRunning ? '/api/queue/stop' : '/api/queue/start';
+            try {
+                const res = await fetch(endpoint, { method: 'POST' });
+                if (res.ok) {
+                    isQueueRunning = !isQueueRunning;
+                    updateQueueBtnUI();
+                }
+            } catch (err) { alert('Error cambiando estado de la cola'); }
+        };
+
+        loadVoices();
+        loadSessions();
+        fetchQueueStatus();
+        setInterval(loadSessions, 5000); // Refrescar lista cada 5s para ver progreso del batch
+        setInterval(fetchQueueStatus, 5000); // También refrescar el estado del botón por si cambia
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,12 @@
+flask
+kokoro-onnx
+onnxruntime
+pydub
+soundfile
+PyMuPDF
+pymupdf
+python-docx
+werkzeug
+EbookLib
+beautifulsoup4
+imageio-ffmpeg
