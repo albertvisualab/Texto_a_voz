@@ -32,6 +32,7 @@
             color: var(--text);
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 20px;
@@ -227,9 +228,25 @@
         }
 
         .session-item:hover {
-            box-shadow: 0 10px 15px -3px rgba(20, 19, 19, 0.05);
-            transform: translateY(-1px);
-            border-color: var(--primary);
+            border-color: rgba(214, 185, 114, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .session-item.active {
+            border-color: var(--secondary);
+            background: rgba(214, 185, 114, 0.05);
+            box-shadow: 0 4px 12px rgba(214, 185, 114, 0.15);
+        }
+
+        .session-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--secondary);
+            border-radius: 4px 0 0 4px;
         }
 
         .session-info {
@@ -265,12 +282,54 @@
             transition: all 0.2s;
             display: flex;
             align-items: center;
-            justify-content: center;
+            transition: background-color 0.2s;
         }
 
         .btn-delete-session:hover {
+            background-color: #fef2f2;
             color: #ef4444;
-            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* TABS CSS */
+        .tabs-wrapper {
+            width: 100%;
+            max-width: 1500px;
+            margin: 0 auto 0 auto;
+            padding: 0 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 14px 24px;
+            background: rgba(220, 215, 210, 0.3);
+            border: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+            border-radius: 12px 12px 0 0;
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            top: 1px;
+            z-index: 1;
+        }
+        
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            color: var(--primary);
+        }
+        
+        .tab-btn.active {
+            background: var(--glass);
+            color: var(--text);
+            border-bottom: 1px solid transparent;
+            border-top: 3px solid var(--primary);
+            font-weight: 600;
+            z-index: 3;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.02);
         }
 
         .btn-rename-session {
@@ -597,7 +656,13 @@
 </head>
 
 <body>
-    <div class="container">
+    <div class="tabs-wrapper" style="margin-top: 30px;">
+        <button id="tab-btn-tts" class="tab-btn active" onclick="switchTab('tts')">📝 Texto a Voz</button>
+        <button id="tab-btn-converter" class="tab-btn" onclick="switchTab('converter')">🔄 Conversor de Audio</button>
+    </div>
+
+    <!-- PESTAÑA TEXTO A VOZ -->
+    <div id="tab-tts" class="container">
         <!-- Panel Izquierdo: Ajustes -->
         <aside class="settings-sidebar">
             <h3>⚙️ Configuración Global</h3>
@@ -613,13 +678,15 @@
             <div class="input-group">
                 <label>Formato de Salida</label>
                 <select id="output-format" style="width: 100%; padding: 8px; background: #ffffff; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text);">
-                    <option value="wav">WAV (Máxima Calidad)</option>
-                    <option value="mp3">MP3 (Comprimido)</option>
+                    <option value="wav">WAV (Sin Pérdida)</option>
+                    <option value="mp3">MP3 (Universal)</option>
+                    <option value="opus">OPUS (Máxima compresión - Voz)</option>
+                    <option value="m4a">M4A (Estándar móvil - AAC)</option>
                 </select>
             </div>
 
             <div class="input-group" id="bitrate-group" style="display: none;">
-                <label>Calidad MP3</label>
+                <label id="bitrate-label">Calidad MP3</label>
                 <select id="bitrate" style="width: 100%; padding: 8px; background: #ffffff; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text);">
                     <option value="128k">128 kbps</option>
                     <option value="192k" selected>192 kbps (Recomendado)</option>
@@ -635,8 +702,10 @@
                     </label>
                 </div>
                 
-                <div id="single-voice-container" style="margin-top: 8px;">
-                    <select id="voice"></select>
+                <div id="single-voice-container" style="margin-top: 8px; display: flex; gap: 8px;">
+                    <select id="voice" style="flex: 1;"></select>
+                    <button id="favorite-voice-btn" class="preview-mini-btn" title="Añadir a Favoritos" style="padding: 0 12px; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;">☆</button>
+                    <button id="preview-voice-btn" class="preview-mini-btn" title="Escuchar Voz" style="padding: 0 12px; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;">🔊</button>
                 </div>
 
                 <div id="mixer-section" style="display: none; margin-top: 8px; background: rgba(255,255,255,0.4); padding: 10px; border-radius: 8px; border: 1px dashed var(--glass-border);">
@@ -692,6 +761,10 @@
                     </div>
                 </div>
                 <textarea id="text" placeholder="Escribe aquí o sube un libro..."></textarea>
+                <div style="margin-top: 8px; font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" id="use-original-name" checked>
+                    <label for="use-original-name" style="margin: 0; cursor: pointer; color: inherit;">Usar nombre del archivo original (si se ha subido uno)</label>
+                </div>
             </div>
 
 
@@ -776,7 +849,7 @@
                 <p style="margin-bottom: 10px; font-size: 0.9rem; color: #cbd5e1;">¡Conversión completa! Ya puedes
                     descargar el audio completo.</p>
                 <a id="download-link" href="#" class="btn-download">
-                    📥 Descargar WAV Completo
+                    📥 Descargar Audio Completo
                 </a>
             </div>
 
@@ -784,6 +857,61 @@
                 style="margin-top: 20px; width: auto; align-self: center; display: none;">
                 📖 Abrir Modo Lectura (Karaoke)
             </button>
+        </div>
+        </div>
+    </div>
+
+    <!-- PESTAÑA CONVERSOR -->
+    <div id="tab-converter" class="container" style="display: none; grid-template-columns: 280px 1fr; background: var(--glass); padding: 30px; border-radius: 0 12px 12px 12px; border: 1px solid var(--glass-border); box-shadow: 0 10px 30px -15px rgba(20, 19, 19, 0.05); gap: 30px;">
+        
+        <!-- Columna Izquierda: Controles -->
+        <aside class="settings-sidebar" style="box-shadow: none; border: none; background: transparent; padding: 0 10px 0 0;">
+            <h2 style="color: var(--primary); margin-bottom: 10px;">Opciones</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Sube tus archivos WAV o MP3 y conviértelos al formato que necesites (ideal para crear archivos M4A u OPUS ligeros).</p>
+            
+            <div class="input-group">
+                <label>Archivos de Audio</label>
+                <input type="file" id="converter-file-input" accept="audio/*" multiple class="btn-secondary" style="width: 100%; padding: 10px;">
+            </div>
+            
+            <div class="input-group">
+                <label>Formato de Salida</label>
+                <select id="converter-format" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--glass-border);">
+                    <option value="m4a">M4A (Estándar móvil - AAC)</option>
+                    <option value="opus">OPUS (Máxima compresión - Voz)</option>
+                    <option value="mp3">MP3 (Universal)</option>
+                    <option value="wav">WAV (Sin Pérdida)</option>
+                </select>
+            </div>
+
+            <div class="input-group" id="converter-bitrate-group" style="margin-bottom: 20px;">
+                <label id="converter-bitrate-label">Bitrate (Calidad)</label>
+                <select id="converter-bitrate" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--glass-border);">
+                    <option value="64k">64 kbps (Ligero)</option>
+                    <option value="96k" selected>96 kbps (Recomendada)</option>
+                    <option value="128k">128 kbps (Alta Calidad)</option>
+                </select>
+            </div>
+
+            <button id="converter-add-btn" class="btn-primary" style="width: 100%; margin-bottom: 20px;" onclick="addConverterTasks()">
+                Añadir a la Cola
+            </button>
+        </aside>
+
+        <!-- Columna Derecha: Cola de Procesamiento -->
+        <div style="background: rgba(255, 255, 255, 0.4); border-radius: 12px; padding: 20px; border: 1px solid var(--glass-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: var(--primary); margin: 0;">Cola de Procesamiento</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button id="converter-queue-btn" class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="toggleConverterQueue()">
+                        ▶️ Iniciar Cola
+                    </button>
+                </div>
+            </div>
+            
+            <div id="converter-list" style="display: flex; flex-direction: column; gap: 10px;">
+                <p style="font-size: 0.8rem; color: #475569;">No hay conversiones activas.</p>
+            </div>
         </div>
     </div>
 
@@ -838,6 +966,7 @@
         const weightADisplay = document.getElementById('weight-a-display');
         const weightBDisplay = document.getElementById('weight-b-display');
         const previewBlendBtn = document.getElementById('preview-blend-btn');
+        const previewVoiceBtn = document.getElementById('preview-voice-btn');
 
         let currentProjectId = null;
         let totalChunks = 0;
@@ -849,59 +978,162 @@
         let pregenerationIndex = 0;
         let isPregenerating = false;
         const BUFFER_TARGET = 15; // Intentar tener 15 chunks listos en disco (agresivo)
+        
+        let favorites = JSON.parse(localStorage.getItem('tts_favorites')) || [];
+
+        async function syncFavorites() {
+            try {
+                const res = await fetch('/api/favorites');
+                if (res.ok) {
+                    const serverFavs = await res.json();
+                    if (Array.isArray(serverFavs)) {
+                        // Combinamos manteniendo los del servidor y los locales existentes
+                        const merged = Array.from(new Set([...serverFavs, ...favorites]));
+                        favorites = merged;
+                        localStorage.setItem('tts_favorites', JSON.stringify(favorites));
+                        if (merged.length !== serverFavs.length) {
+                            await fetch('/api/favorites', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ favorites: merged })
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Error sincronizando favoritos con el servidor:', e);
+            }
+        }
 
         async function loadVoices() {
             try {
+                await syncFavorites();
                 const res = await fetch('/api/voices');
                 const voices = await res.json();
+                
                 const groups = {};
+
                 voices.forEach(v => {
+                    // Si es favorito, añadimos la estrella al label
+                    if (favorites.includes(v.id)) {
+                        v.label = "⭐ " + v.label;
+                    }
                     if (!groups[v.group]) groups[v.group] = [];
                     groups[v.group].push(v);
                 });
+                
                 voiceSelect.innerHTML = '';
                 voiceA.innerHTML = '';
                 voiceB.innerHTML = '';
 
-                for (const gName in groups) {
-                    const createGroup = () => {
+                // Añadir grupo de favoritos arriba si hay alguno
+                const favVoices = voices.filter(v => favorites.includes(v.id));
+                if (favVoices.length > 0) {
+                    const appendFavs = (parentEl) => {
                         const gp = document.createElement('optgroup');
-                        gp.label = gName;
-                        return gp;
-                    };
-
-                    const group = createGroup();
-                    const groupA = createGroup();
-                    const groupB = createGroup();
-
-                    groups[gName].forEach(v => {
-                        const createOpt = () => {
+                        gp.label = "⭐ Favoritos";
+                        favVoices.forEach(v => {
                             const opt = document.createElement('option');
                             opt.value = v.id;
                             opt.textContent = v.label;
                             opt.dataset.lang = v.lang;
-                            return opt;
-                        };
-
-                        const opt = createOpt();
-                        const optA = createOpt();
-                        const optB = createOpt();
-
-                        if (v.id === 'em_alex') opt.selected = true;
-                        if (v.id === 'ef_dora') optA.selected = true;
-                        if (v.id === 'em_alex') optB.selected = true;
-
-                        group.appendChild(opt);
-                        groupA.appendChild(optA);
-                        groupB.appendChild(optB);
-                    });
-
-                    voiceSelect.appendChild(group);
-                    voiceA.appendChild(groupA);
-                    voiceB.appendChild(groupB);
+                            gp.appendChild(opt);
+                        });
+                        parentEl.appendChild(gp);
+                    };
+                    appendFavs(voiceSelect);
+                    appendFavs(voiceA);
+                    appendFavs(voiceB);
                 }
+
+                const appendVoiceOptions = (groupList, parentEl, groupLabel) => {
+                    if (groupList.length === 0) return;
+                    const gp = document.createElement('optgroup');
+                    gp.label = groupLabel;
+                    groupList.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        opt.textContent = v.label;
+                        opt.dataset.lang = v.lang;
+                        gp.appendChild(opt);
+                    });
+                    parentEl.appendChild(gp);
+                };
+
+                for (const gName in groups) {
+                    appendVoiceOptions(groups[gName], voiceSelect, gName);
+                    appendVoiceOptions(groups[gName], voiceA, gName);
+                    appendVoiceOptions(groups[gName], voiceB, gName);
+                }
+
+                // Cargar ajustes la primera vez que se monta todo
+                if (!window.initialSettingsLoaded) {
+                    loadSettings();
+                    window.initialSettingsLoaded = true;
+                }
+                
+                updateFavoriteBtnState();
             } catch (err) { console.error('Error cargando voces', err); }
         }
+
+        // --- SISTEMA DE GUARDADO DE AJUSTES ---
+        function saveSettings() {
+            const bitrateEl = document.getElementById('bitrate');
+            const settings = {
+                readingMode: document.getElementById('reading-mode').value,
+                outputFormat: outputFormat.value,
+                bitrate: bitrateEl ? bitrateEl.value : "192k",
+                voice: voiceSelect.value,
+                useMixer: useMixerCheck.checked,
+                voiceA: voiceA.value,
+                voiceB: voiceB.value,
+                mixerRatio: mixerRatio.value,
+                speed: speedInput.value,
+                useOriginalName: document.getElementById('use-original-name') ? document.getElementById('use-original-name').checked : true
+            };
+            localStorage.setItem('tts_settings', JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const saved = JSON.parse(localStorage.getItem('tts_settings'));
+            if (!saved) return;
+            
+            if (saved.readingMode) document.getElementById('reading-mode').value = saved.readingMode;
+            if (saved.outputFormat) {
+                outputFormat.value = saved.outputFormat;
+                outputFormat.dispatchEvent(new Event('change')); // Desencadena la interfaz de bitrate
+            }
+            if (saved.bitrate) {
+                // Al despachar change en outputFormat se re-renderizan los options del bitrate
+                // Así que esperamos al proximo tick para setear el valor
+                setTimeout(() => {
+                    const el = document.getElementById('bitrate');
+                    if(el) { el.value = saved.bitrate; }
+                }, 0);
+            }
+            if (saved.voice) voiceSelect.value = saved.voice;
+            
+            if (saved.useMixer !== undefined) {
+                useMixerCheck.checked = saved.useMixer;
+                useMixerCheck.dispatchEvent(new Event('change'));
+            }
+            if (saved.voiceA) voiceA.value = saved.voiceA;
+            if (saved.voiceB) voiceB.value = saved.voiceB;
+            if (saved.mixerRatio) {
+                mixerRatio.value = saved.mixerRatio;
+                mixerRatio.dispatchEvent(new Event('input'));
+            }
+            if (saved.speed) {
+                speedInput.value = saved.speed;
+                speedInput.dispatchEvent(new Event('input'));
+            }
+            if (saved.useOriginalName !== undefined) {
+                const cb = document.getElementById('use-original-name');
+                if (cb) cb.checked = saved.useOriginalName;
+            }
+        }
+
+        const projectProgressHistory = {}; // Para calcular ETA
 
         async function loadSessions() {
             try {
@@ -913,6 +1145,36 @@
                 }
                 projects.sort((a, b) => b.id.localeCompare(a.id)).forEach(p => {
                     const progress = Math.round((p.completed_chunks / p.total_chunks) * 100);
+                    
+                    // ETA Calculation
+                    let etaText = "";
+                    if (!p.is_finished && p.completed_chunks > 0 && p.completed_chunks < p.total_chunks) {
+                        const now = Date.now();
+                        const hist = projectProgressHistory[p.id] || { lastCompleted: 0, lastTime: now, speed: 0 };
+                        if (p.completed_chunks > hist.lastCompleted) {
+                            const diffChunks = p.completed_chunks - hist.lastCompleted;
+                            const diffTime = now - hist.lastTime;
+                            hist.speed = diffChunks / diffTime; // chunks por milisegundo
+                            hist.lastCompleted = p.completed_chunks;
+                            hist.lastTime = now;
+                        }
+                        if (hist.speed > 0) {
+                            const remainingChunks = p.total_chunks - p.completed_chunks;
+                            const remainingMs = remainingChunks / hist.speed;
+                            const remainingMin = Math.ceil(remainingMs / 60000);
+                            etaText = ` - Quedan ~${remainingMin} min`;
+                        }
+                        projectProgressHistory[p.id] = hist;
+                    }
+
+                    // Status and Voice
+                    let statusIcon = "⏸️";
+                    if (p.is_finished) statusIcon = "✅";
+                    else if (p.completed_chunks > 0) statusIcon = "⏳";
+                    
+                    let voiceLabel = p.voice || "Voz por defecto";
+                    if (voiceLabel.includes(',')) voiceLabel = "Mezcla";
+                    
                     const item = document.createElement('div');
                     item.className = `session-item ${currentProjectId === p.id ? 'active' : ''}`;
                     item.onclick = () => resumeProject(p);
@@ -926,7 +1188,7 @@
                     if (p.is_finished) {
                         actionsHtml += `
                             <a href="/api/projects/${p.id}/download" class="btn-download-session" 
-                                onclick="event.stopPropagation()" title="Descargar WAV completo">
+                                onclick="event.stopPropagation()" title="Descargar ${p.output_format ? p.output_format.toUpperCase() : 'WAV'} completo">
                                 📥
                             </a>
                         `;
@@ -939,8 +1201,9 @@
 
                     item.innerHTML = `
                         <div class="session-info">
-                            <strong>${p.name}</strong>
-                            <small>${p.total_chunks} fragmentos - ${progress}%</small>
+                            <strong>${statusIcon} <span class="session-name-text">${p.name}</span></strong>
+                            <small style="display: block; margin: 2px 0; color: var(--primary);">🗣️ ${voiceLabel}</small>
+                            <small>${p.total_chunks} fragmentos - ${progress}%${etaText}</small>
                         </div>
                         <div class="session-actions">
                             ${actionsHtml}
@@ -1029,7 +1292,7 @@
 
                 if (pregenerationIndex >= totalChunks || p.is_finished) {
                     bufferStatus.textContent = `✓ Lectura totalmente preparada (${totalChunks} partes).`;
-                    showDownloadButton();
+                    showDownloadButton(p);
                     isPregenerating = false;
                     return;
                 }
@@ -1072,7 +1335,7 @@
             const nextIdx = currentChunkIndex + 1;
             if (nextIdx >= totalChunks) {
                 statusBar.textContent = "✓ Lectura completada.";
-                showDownloadButton();
+                showDownloadButton(window.currentProjectInfo);
                 return;
             }
 
@@ -1125,7 +1388,10 @@
 
         async function initializeProject(project, isResuming) {
             currentProjectId = project.id;
+            window.currentProjectInfo = project;
             totalChunks = project.total_chunks;
+            lastMetadataFetchIdx = -1; // Reset karaoke metadata for new project
+            currentChunkMetadata = null;
 
             // Si el proyecto esta terminado, empezamos de nuevo o desde el ultimo punto guardado
             currentChunkIndex = (project.last_chunk || 0) - 1;
@@ -1149,7 +1415,7 @@
             runPregenerator();
 
             if (project.is_finished) {
-                showDownloadButton();
+                showDownloadButton(project);
                 playNextChunk(); // Ahora si funcionara porque currentChunkIndex no es el final
             } else {
                 downloadZone.style.display = 'none';
@@ -1191,8 +1457,10 @@
             initializeProject(project, true);
         }
 
-        function showDownloadButton() {
+        function showDownloadButton(project) {
             downloadLink.href = `/api/projects/${currentProjectId}/download`;
+            let formatName = project && project.output_format ? project.output_format.toUpperCase() : "WAV";
+            downloadLink.textContent = `📥 Descargar ${formatName} Completo`;
             downloadZone.style.display = 'block';
         }
 
@@ -1221,8 +1489,40 @@
         // --- EVENTOS DEL MEZCLADOR Y AJUSTES ---
         const outputFormat = document.getElementById('output-format');
         const bitrateGroup = document.getElementById('bitrate-group');
+        const bitrateSelect = document.getElementById('bitrate');
+        const bitrateLabel = document.getElementById('bitrate-label');
+        
         outputFormat.onchange = () => {
-            bitrateGroup.style.display = outputFormat.value === 'mp3' ? 'block' : 'none';
+            const format = outputFormat.value;
+            if (format === 'wav') {
+                bitrateGroup.style.display = 'none';
+            } else {
+                bitrateGroup.style.display = 'block';
+                bitrateSelect.innerHTML = '';
+                
+                if (format === 'mp3') {
+                    bitrateLabel.textContent = "Calidad MP3";
+                    bitrateSelect.innerHTML = `
+                        <option value="128k">128 kbps (Buena)</option>
+                        <option value="192k" selected>192 kbps (Recomendada)</option>
+                        <option value="320k">320 kbps (Alta)</option>
+                    `;
+                } else if (format === 'opus') {
+                    bitrateLabel.textContent = "Calidad OPUS";
+                    bitrateSelect.innerHTML = `
+                        <option value="24k">24 kbps (Ultra Ligero)</option>
+                        <option value="32k" selected>32 kbps (Recomendada para Voz)</option>
+                        <option value="64k">64 kbps (Alta Calidad)</option>
+                    `;
+                } else if (format === 'm4a') {
+                    bitrateLabel.textContent = "Calidad M4A (AAC)";
+                    bitrateSelect.innerHTML = `
+                        <option value="64k">64 kbps (Ligero)</option>
+                        <option value="96k" selected>96 kbps (Recomendada)</option>
+                        <option value="128k">128 kbps (Alta Calidad)</option>
+                    `;
+                }
+            }
         };
 
         useMixerCheck.onchange = () => {
@@ -1236,12 +1536,97 @@
             weightBDisplay.textContent = `${100 - val}%`;
         };
 
+        const previewPhrases = {
+            'ca': "Hola, aquesta és una prova de la meva veu en català.",
+            'en-us': "Hello, this is a test of my voice.",
+            'en-gb': "Hello, this is a test of my voice.",
+            'es': "Hola, esta es una prueba de mi voz.",
+            'fr': "Bonjour, ceci est un test de ma voix.",
+            'it': "Ciao, questa è una prova della mia voce.",
+            'ja': "こんにちは、これは私の声のテストです。",
+            'pt-br': "Olá, este é um teste da minha voz.",
+            'zh': "你好，这是我的声音测试。"
+        };
+
+        const favoriteVoiceBtn = document.getElementById('favorite-voice-btn');
+        
+        function updateFavoriteBtnState() {
+            const currentVoiceId = voiceSelect.value;
+            if (favorites.includes(currentVoiceId)) {
+                favoriteVoiceBtn.textContent = "⭐";
+                favoriteVoiceBtn.style.color = "var(--secondary)"; // Destaque visual
+            } else {
+                favoriteVoiceBtn.textContent = "☆";
+                favoriteVoiceBtn.style.color = "var(--text)";
+            }
+        }
+
+        voiceSelect.addEventListener('change', updateFavoriteBtnState);
+
+        favoriteVoiceBtn.onclick = async () => {
+            const currentVoiceId = voiceSelect.value;
+            if (favorites.includes(currentVoiceId)) {
+                favorites = favorites.filter(id => id !== currentVoiceId);
+            } else {
+                favorites.push(currentVoiceId);
+            }
+            localStorage.setItem('tts_favorites', JSON.stringify(favorites));
+            
+            // Guardar también en el servidor (favorites.json)
+            try {
+                await fetch('/api/favorites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ favorites })
+                });
+            } catch (err) {
+                console.error("Error guardando favoritos en el servidor", err);
+            }
+
+            // Recargar voces para actualizar grupos, pero mantener la actual seleccionada
+            const prevVoice = voiceSelect.value;
+            await loadVoices();
+            voiceSelect.value = prevVoice;
+            updateFavoriteBtnState();
+        };
+
+        previewVoiceBtn.onclick = async () => {
+            const voiceId = voiceSelect.value;
+            const lang = voiceSelect.options[voiceSelect.selectedIndex].dataset.lang;
+            const text = previewPhrases[lang] || previewPhrases['es'];
+
+            previewVoiceBtn.disabled = true;
+            previewVoiceBtn.textContent = "⏳";
+
+            try {
+                const res = await fetch('/api/speak', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        voice: voiceId,
+                        speed: parseFloat(speedInput.value),
+                        lang: lang
+                    })
+                });
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                audio.play();
+            } catch (err) {
+                alert('Error en previsualización');
+            } finally {
+                previewVoiceBtn.disabled = false;
+                previewVoiceBtn.textContent = "🔊";
+            }
+        };
+
         previewBlendBtn.onclick = async () => {
-            const text = "Hola, esta es una prueba de mi voz personalizada.";
+            const lang = voiceA.options[voiceA.selectedIndex].dataset.lang;
+            const text = previewPhrases[lang] || previewPhrases['es'];
             const weightA = mixerRatio.value / 100;
             const weightB = (100 - mixerRatio.value) / 100;
             const voiceSpec = `${voiceA.value}:${weightA.toFixed(2)},${voiceB.value}:${weightB.toFixed(2)}`;
-            const lang = voiceA.options[voiceA.selectedIndex].dataset.lang;
 
             previewBlendBtn.disabled = true;
             previewBlendBtn.textContent = "⏳...";
@@ -1253,7 +1638,7 @@
                     body: JSON.stringify({
                         text: text,
                         voice: voiceSpec,
-                        speed: 1.0,
+                        speed: parseFloat(speedInput.value),
                         lang: lang
                     })
                 });
@@ -1291,6 +1676,7 @@
                 // Un solo archivo: extraer texto y poner en el textarea
                 const formData = new FormData();
                 formData.append('file', files[0]);
+                window.lastUploadedFilename = files[0].name.replace(/\.[^/.]+$/, ""); // Guardar nombre sin extensión
                 uploadBtn.textContent = '...';
                 try {
                     const res = await fetch('/api/extract', { method: 'POST', body: formData });
@@ -1318,6 +1704,8 @@
                 formData.append('speed', speedInput.value);
                 formData.append('lang', langFinal);
                 formData.append('reading_mode', document.getElementById('reading-mode').value);
+                formData.append('output_format', outputFormat.value);
+                formData.append('bitrate', document.getElementById('bitrate') ? document.getElementById('bitrate').value : "192k");
 
                 try {
                     const res = await fetch('/api/batch/add', { method: 'POST', body: formData });
@@ -1395,13 +1783,20 @@
                 langFinal = voiceA.options[voiceA.selectedIndex].dataset.lang;
             }
 
+            const useOriginalName = document.getElementById('use-original-name').checked;
+            const projectName = (useOriginalName && window.lastUploadedFilename) ? 
+                window.lastUploadedFilename : 
+                text.substring(0, 30).trim();
+
             const payload = {
-                name: text.substring(0, 30),
+                name: projectName || "Mi Proyecto",
                 text: text,
                 voice: voiceFinal,
                 speed: speedInput.value,
                 lang: langFinal,
-                reading_mode: document.getElementById('reading-mode').value
+                reading_mode: document.getElementById('reading-mode').value,
+                output_format: outputFormat.value,
+                bitrate: document.getElementById('bitrate') ? document.getElementById('bitrate').value : "192k"
             };
 
             try {
@@ -1548,7 +1943,7 @@
             readingOverlay.style.display = 'flex';
             const nativeAudio = document.getElementById('reading-player');
             if (nativeAudio) nativeAudio.style.display = 'none';
-            readingTitle.textContent = "Lectura: " + (document.querySelector('.session-item.active strong')?.textContent || "Documento");
+            readingTitle.textContent = "Lectura: " + (document.querySelector('.session-item.active .session-name-text')?.textContent || "Documento");
             fetchChunkMetadata(currentChunkIndex);
         };
 
@@ -1662,11 +2057,209 @@
                 }
             } catch (err) { alert('Error cambiando estado de la cola'); }
         };
+        
+        // Asignar los eventos de guardado a todos los inputs
+        [
+            document.getElementById('reading-mode'),
+            outputFormat,
+            voiceSelect,
+            useMixerCheck,
+            voiceA,
+            voiceB,
+            mixerRatio,
+            speedInput,
+            document.getElementById('use-original-name')
+        ].forEach(el => {
+            if (el) {
+                el.addEventListener('change', saveSettings);
+                if (el.type === 'range') el.addEventListener('input', saveSettings);
+            }
+        });
+        
+        // Para los elementos dinámicos o que requieren atención especial:
+        document.body.addEventListener('change', (e) => {
+            if (e.target && e.target.id === 'bitrate') {
+                saveSettings();
+            }
+        });
 
         loadVoices();
         loadSessions();
         fetchQueueStatus();
         setInterval(loadSessions, 5000); // Refrescar lista cada 5s para ver progreso del batch
+
+        // Tabs Logic
+        function switchTab(tabId) {
+            document.getElementById('tab-tts').style.display = tabId === 'tts' ? 'grid' : 'none';
+            document.getElementById('tab-converter').style.display = tabId === 'converter' ? 'grid' : 'none';
+            
+            document.getElementById('tab-btn-tts').className = tabId === 'tts' ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tab-btn-converter').className = tabId === 'converter' ? 'tab-btn active' : 'tab-btn';
+        }
+
+        // Converter Logic
+        const converterFormat = document.getElementById('converter-format');
+        const converterBitrateSelect = document.getElementById('converter-bitrate');
+        const converterBitrateGroup = document.getElementById('converter-bitrate-group');
+        const converterBitrateLabel = document.getElementById('converter-bitrate-label');
+
+        converterFormat.onchange = () => {
+            const format = converterFormat.value;
+            if (format === 'wav') {
+                converterBitrateGroup.style.display = 'none';
+            } else {
+                converterBitrateGroup.style.display = 'block';
+                converterBitrateSelect.innerHTML = '';
+                
+                if (format === 'mp3') {
+                    converterBitrateLabel.textContent = "Calidad MP3";
+                    converterBitrateSelect.innerHTML = `
+                        <option value="128k">128 kbps (Buena)</option>
+                        <option value="192k" selected>192 kbps (Recomendada)</option>
+                        <option value="320k">320 kbps (Alta)</option>
+                    `;
+                } else if (format === 'opus') {
+                    converterBitrateLabel.textContent = "Calidad OPUS";
+                    converterBitrateSelect.innerHTML = `
+                        <option value="24k">24 kbps (Ultra Ligero)</option>
+                        <option value="32k" selected>32 kbps (Recomendada para Voz)</option>
+                        <option value="64k">64 kbps (Alta Calidad)</option>
+                    `;
+                } else if (format === 'm4a') {
+                    converterBitrateLabel.textContent = "Calidad M4A (AAC)";
+                    converterBitrateSelect.innerHTML = `
+                        <option value="64k">64 kbps (Ligero)</option>
+                        <option value="96k" selected>96 kbps (Recomendada)</option>
+                        <option value="128k">128 kbps (Alta Calidad)</option>
+                    `;
+                }
+            }
+        };
+        // Trigger on load
+        converterFormat.dispatchEvent(new Event('change'));
+
+        async function addConverterTasks() {
+            const files = document.getElementById('converter-file-input').files;
+            if (files.length === 0) return alert('Selecciona al menos un archivo de audio');
+            
+            const formData = new FormData();
+            for(let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+            formData.append('output_format', document.getElementById('converter-format').value);
+            formData.append('bitrate', document.getElementById('converter-bitrate').value);
+            
+            const btn = document.getElementById('converter-add-btn');
+            btn.textContent = 'Enviando...';
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/converter/add', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.status === 'queued') {
+                    document.getElementById('converter-file-input').value = '';
+                    loadConverterTasks();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) { alert('Error de conexión'); }
+            finally {
+                btn.textContent = 'Añadir a la Cola de Conversión';
+                btn.disabled = false;
+            }
+        }
+
+        let isConverterRunning = false;
+
+        async function toggleConverterQueue() {
+            const endpoint = isConverterRunning ? '/api/converter/stop' : '/api/converter/start';
+            try {
+                await fetch(endpoint, { method: 'POST' });
+                loadConverterTasks();
+            } catch (err) {}
+        }
+
+        async function loadConverterTasks() {
+            try {
+                const res = await fetch('/api/converter/status');
+                const data = await res.json();
+                const tasks = data.tasks;
+                isConverterRunning = data.is_running;
+                
+                const btn = document.getElementById('converter-queue-btn');
+                if (isConverterRunning) {
+                    btn.textContent = '⏸️ Pausar Cola';
+                    btn.className = 'btn-secondary';
+                } else {
+                    btn.textContent = '▶️ Iniciar Cola';
+                    btn.className = 'btn-primary';
+                }
+
+                const list = document.getElementById('converter-list');
+                
+                if (tasks.length === 0) {
+                    list.innerHTML = '<p style="font-size: 0.8rem; color: #475569;">No hay conversiones activas.</p>';
+                    return;
+                }
+                
+                list.innerHTML = '';
+                tasks.forEach(t => {
+                    let icon = '⏳';
+                    if (t.status === 'completed') icon = '✅';
+                    if (t.status === 'error') icon = '❌';
+                    if (t.status === 'processing') icon = '⚙️';
+                    
+                    const item = document.createElement('div');
+                    item.className = 'session-item';
+                    item.style.display = 'flex';
+                    item.style.flexDirection = 'column';
+                    item.style.gap = '8px';
+                    item.style.cursor = 'default';
+                    
+                    let dlBtn = '';
+                    if (t.status === 'completed') {
+                        dlBtn = `<a href="/api/converter/download/${t.id}" class="btn-download-session" style="display:inline-flex; width:auto; text-decoration:none;">📥</a>`;
+                    }
+                    
+                    // Barra de progreso (para processing o completed)
+                    let progressHtml = '';
+                    if (t.status === 'processing' || t.progress > 0) {
+                        const pct = t.progress || 0;
+                        progressHtml = `
+                            <div style="width: 100%; background: #e2e8f0; border-radius: 4px; height: 6px; overflow: hidden; margin-top: 5px;">
+                                <div style="width: ${pct}%; background: var(--primary); height: 100%; transition: width 0.3s;"></div>
+                            </div>
+                        `;
+                    }
+                    
+                    item.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <strong>${icon} ${t.original_filename}</strong>
+                                <small style="display:block; margin-top:2px;">A ${t.output_format.toUpperCase()} (${t.bitrate}) ${t.status === 'processing' ? ` - ${t.progress}%` : ''}</small>
+                                ${t.error ? `<small style="color:red">${t.error}</small>` : ''}
+                            </div>
+                            <div style="display:flex; gap:10px;">
+                                ${dlBtn}
+                                <button class="btn-delete-session" onclick="deleteConverterTask('${t.id}')">×</button>
+                            </div>
+                        </div>
+                        ${progressHtml}
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (err) { console.error('Error loadConverterTasks', err); }
+        }
+
+        async function deleteConverterTask(id) {
+            try {
+                await fetch('/api/converter/delete/' + id, { method: 'DELETE' });
+                loadConverterTasks();
+            } catch(e) {}
+        }
+        
+        setInterval(loadConverterTasks, 3000);
+        loadConverterTasks();
         setInterval(fetchQueueStatus, 5000); // También refrescar el estado del botón por si cambia
     </script>
 </body>

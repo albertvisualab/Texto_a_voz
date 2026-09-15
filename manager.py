@@ -8,6 +8,7 @@ import imageio_ffmpeg
 from pydub import AudioSegment
 AudioSegment.converter = imageio_ffmpeg.get_ffmpeg_exe()
 from kokoro_onnx import Kokoro
+from catalan_engine import CatalanEngine
 import io
 import threading
 
@@ -15,14 +16,16 @@ class BatchManager:
     def __init__(self, projects_dir, model_path, voices_path):
         self.projects_dir = projects_dir
         os.makedirs(self.projects_dir, exist_ok=True)
-        self.lock = threading.Lock() # Lock para Kokoro (generación)
+        self.lock = threading.Lock() # Lock para Kokoro / síntesis
         self.status_lock = threading.Lock() # Lock para archivos de estado (json)
         self.project_states = {} # Caché en memoria para evitar lecturas de disco constantes
         
-        # Inicializar Kokoro una sola vez
+        # Inicializar Kokoro y CatalanEngine
         print(f"Cargando modelo Kokoro desde {model_path}...")
         self.kokoro = Kokoro(model_path, voices_path)
-        print("Modelo cargado.")
+        self.catalan_engine = CatalanEngine()
+        self._voice_cache = {}
+        print("Modelos cargados.")
 
     def _update_project_status(self, project_id, update_func):
         """
@@ -66,6 +69,9 @@ class BatchManager:
         1. Nombre de voz simple: "af_bella"
         2. Mezcla de voces: "ef_dora:0.7,em_alex:0.3"
         """
+        if voice_spec in self._voice_cache:
+            return self._voice_cache[voice_spec]
+
         if "," in voice_spec or ":" in voice_spec:
             try:
                 # Caso de mezcla: "v1:w1,v2:w2"
@@ -91,13 +97,21 @@ class BatchManager:
                 # Normalizar pesos
                 if total_weight > 0:
                     total_style = total_style / total_weight
+                self._voice_cache[voice_spec] = total_style
                 return total_style
             except Exception as e:
                 print(f"Error parseando mezcla de voz '{voice_spec}': {e}. Usando voz por defecto.")
-                return "af_bella" # Fallback
+                # Fallback fallido, usar por defecto
+                voice_spec = "af_bella" 
         
         # Caso normal: solo el nombre de la voz
-        return voice_spec
+        try:
+            style = self.kokoro.get_voice_style(voice_spec.strip())
+            self._voice_cache[voice_spec] = style
+            return style
+        except Exception as e:
+            print(f"Error cargando voz '{voice_spec}': {e}")
+            return self.kokoro.get_voice_style("af_bella")
 
     def _generate_audio_safe(self, text, voice_spec, speed, lang, debug_id=""):
         """
@@ -108,8 +122,8 @@ class BatchManager:
         # Mantenemos caracteres latinos, puntuación común, CJK y símbolos básicos.
         clean_text = re.sub(r'[^\u0000-\u024F\u0020-\u007E\u00A0-\u00FF\u0100-\u017F\u3000-\u30FF\u4E00-\u9FFF\u2000-\u206F！？。，、；：]', ' ', text)
         
-        # 2. Dividir texto en sub-chunks seguros (~250 caracteres max)
-        max_chars = 250
+        # 2. Dividir texto en sub-chunks seguros (~200 caracteres max)
+        max_chars = 200
         
         def split_text(t, limit):
             if len(t) <= limit:
@@ -176,7 +190,11 @@ class BatchManager:
         all_samples = []
         metadata = []
         sample_rate = 24000
-        voice_obj = self._get_voice_style(voice_spec)
+        is_catalan = self.catalan_engine.is_catalan_voice(voice_spec)
+        if not is_catalan:
+            voice_obj = self._get_voice_style(voice_spec)
+        else:
+            voice_obj = None
 
         for i, sub_text in enumerate(sub_chunks):
             if not sub_text.strip(): continue
@@ -185,11 +203,36 @@ class BatchManager:
             if len(sub_chunks) > 1:
                 print(f"  > Sub-parte {i+1}/{len(sub_chunks)}...")
             
-            samples, sr = self.kokoro.create(sub_text, voice=voice_obj, speed=speed, lang=lang)
+            def generate_recursive(txt):
+                try:
+                    if is_catalan:
+                        s, s_rate = self.catalan_engine.generate(txt, voice_id=voice_spec, speed=speed)
+                        return [s], s_rate
+                    else:
+                        s, s_rate = self.kokoro.create(txt, voice=voice_obj, speed=speed, lang=lang)
+                        return [s], s_rate
+                except Exception as e:
+                    if len(txt) > 20:
+                        mid = len(txt) // 2
+                        # Buscar el espacio más cercano al medio
+                        space_idx = txt.rfind(' ', 0, mid)
+                        if space_idx != -1: mid = space_idx
+                        s1, sr1 = generate_recursive(txt[:mid])
+                        s2, sr2 = generate_recursive(txt[mid:])
+                        return s1 + s2, sr1
+                    else:
+                        print(f"Error irrecoverable con texto corto '{txt}': {e}")
+                        return [np.array([], dtype=np.float32)], 24000
+
+            samples_list, sr = generate_recursive(sub_text)
+            
+            # Unir samples si hubo recursión
+            samples = np.concatenate(samples_list) if len(samples_list) > 1 else samples_list[0]
             
             duration = len(samples) / sr
             metadata.append({"text": sub_text, "duration": duration})
-            all_samples.append(samples)
+            if len(samples) > 0:
+                all_samples.append(samples)
             sample_rate = sr
             
         if not all_samples:
@@ -464,16 +507,26 @@ class BatchManager:
 
             print(f"Audio final ensamblado exitosamente en: {output_path}")
             
-            # Nueva lógica para MP3
-            if status.get("output_format") == "mp3":
-                print(f"Convirtiendo a MP3 a {status.get('bitrate', '192k')}...")
+            # Conversión de formatos
+            out_format = status.get("output_format", "wav")
+            if out_format != "wav":
+                print(f"Convirtiendo a {out_format.upper()} a {status.get('bitrate', '192k')}...")
                 try:
                     audio = AudioSegment.from_wav(output_path)
-                    mp3_path = output_path.replace(".wav", ".mp3")
-                    audio.export(mp3_path, format="mp3", bitrate=status.get("bitrate", "192k"))
-                    print(f"MP3 generado: {mp3_path}")
+                    
+                    if out_format == "mp3":
+                        export_path = output_path.replace(".wav", ".mp3")
+                        audio.export(export_path, format="mp3", bitrate=status.get("bitrate", "192k"))
+                    elif out_format == "opus":
+                        export_path = output_path.replace(".wav", ".ogg")
+                        audio.export(export_path, format="ogg", codec="libopus", bitrate=status.get("bitrate", "32k"))
+                    elif out_format == "m4a":
+                        export_path = output_path.replace(".wav", ".m4a")
+                        audio.export(export_path, format="ipod", codec="aac", bitrate=status.get("bitrate", "128k"))
+                        
+                    print(f"Archivo optimizado generado: {export_path}")
                 except Exception as e:
-                    print(f"Error al convertir a MP3: {e}")
+                    print(f"Error al convertir a {out_format.upper()}: {e}")
             
             # Actualizar estado final de forma atómica
             def mark_optimized(s):

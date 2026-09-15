@@ -13,6 +13,7 @@ from werkzeug.utils import secure_filename
 
 from manager import BatchManager
 from processor import TextProcessor
+from converter import ConverterManager
 
 # Configurar ruta de espeak-ng para Windows
 ESPEAK_PATH = r"C:\Program Files\eSpeak NG"
@@ -23,6 +24,8 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['PROJECTS_FOLDER'] = 'projects'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['PROJECTS_FOLDER'], exist_ok=True)
+
+converter_manager = ConverterManager()
 
 def boost_performance():
     """Eleva la prioridad del proceso y desactiva el throttling de energía en Windows."""
@@ -161,21 +164,59 @@ def split():
     chunks = processor.split_into_chunks(text)
     return jsonify({"chunks": chunks})
 
+FAVORITES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'favorites.json')
+
+def load_favorites_from_disk():
+    if os.path.exists(FAVORITES_FILE):
+        try:
+            with open(FAVORITES_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception as e:
+            print(f"Error loading favorites: {e}")
+    return []
+
+def save_favorites_to_disk(favorites_list):
+    try:
+        with open(FAVORITES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(favorites_list, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Error saving favorites: {e}")
+        return False
+
+@app.route("/api/favorites", methods=["GET", "POST"])
+def handle_favorites():
+    if request.method == "POST":
+        data = request.json or {}
+        favorites = data.get("favorites", [])
+        if not isinstance(favorites, list):
+            return jsonify({"error": "Invalid format, list expected"}), 400
+        save_favorites_to_disk(favorites)
+        return jsonify({"status": "ok", "favorites": favorites})
+    else:
+        favorites = load_favorites_from_disk()
+        return jsonify(favorites)
+
 @app.route("/api/voices")
 def get_voices():
-    # Usar el modelo interno del manager
+    # 1. Voces catalanas (Projecte AINA / UPC)
+    catalan_voices = manager.catalan_engine.get_available_voices()
+
+    # 2. Voces internas de Kokoro
     all_voices = manager.kokoro.get_voices()
-    voices_data = []
+    kokoro_voices = []
     for v in all_voices:
         prefix = v[:2]
         info = VOICE_LANG_MAP.get(prefix, {"lang": "en-us", "label": "Other"})
-        voices_data.append({
+        kokoro_voices.append({
             "id": v,
             "label": f"{v.replace('_', ' ').title()}",
             "lang": info["lang"],
             "group": info["label"]
         })
-    return jsonify(voices_data)
+    return jsonify(catalan_voices + kokoro_voices)
 
 @app.route("/api/projects", methods=["GET"])
 def get_projects():
@@ -380,16 +421,17 @@ def get_chunk_metadata(project_id, chunk_id):
 @app.route("/api/projects/<project_id>/download")
 def download_project_audio(project_id):
     project_path = os.path.join(app.config['PROJECTS_FOLDER'], project_id)
-    final_path = os.path.join(project_path, "final_output.wav")
     status_path = os.path.join(project_path, "status.json")
     
-    # Intentar obtener el nombre personalizado del status.json
     custom_name = project_id
+    out_format = "wav"
+    
     if os.path.exists(status_path):
         try:
             with open(status_path, "r", encoding="utf-8") as f:
                 status = json.load(f)
                 custom_name = status.get("name", project_id)
+                out_format = status.get("output_format", "wav")
                 # Sanitizar para nombre de archivo
                 custom_name = "".join(c for c in custom_name if c.isprintable())
                 custom_name = re.sub(r'[\\/:*?"<>|]', '', custom_name).strip(' ._')
@@ -397,8 +439,19 @@ def download_project_audio(project_id):
         except:
             pass
 
+    ext_map = {"wav": ".wav", "mp3": ".mp3", "opus": ".ogg", "m4a": ".m4a"}
+    mime_map = {"wav": "audio/wav", "mp3": "audio/mpeg", "opus": "audio/ogg", "m4a": "audio/mp4"}
+    
+    target_ext = ext_map.get(out_format, ".wav")
+    target_mime = mime_map.get(out_format, "audio/wav")
+    
+    final_path = os.path.join(project_path, f"final_output{target_ext}")
+    wav_path = os.path.join(project_path, "final_output.wav")
+    
     if os.path.exists(final_path):
-        return send_file(final_path, as_attachment=True, download_name=f"{custom_name}.wav", mimetype="audio/wav")
+        return send_file(final_path, as_attachment=True, download_name=f"{custom_name}{target_ext}", mimetype=target_mime)
+    elif os.path.exists(wav_path) and out_format == "wav":
+        return send_file(wav_path, as_attachment=True, download_name=f"{custom_name}.wav", mimetype="audio/wav")
     
     # Si no existe, ver si el proyecto está terminado para ensamblarlo
     if os.path.exists(status_path):
@@ -413,7 +466,9 @@ def download_project_audio(project_id):
             try:
                 manager.assemble_audio(project_id)
                 if os.path.exists(final_path):
-                    return send_file(final_path, as_attachment=True, download_name=f"{custom_name}.wav", mimetype="audio/wav")
+                    return send_file(final_path, as_attachment=True, download_name=f"{custom_name}{target_ext}", mimetype=target_mime)
+                elif os.path.exists(wav_path):
+                    return send_file(wav_path, as_attachment=True, download_name=f"{custom_name}.wav", mimetype="audio/wav")
             except Exception as e:
                 return jsonify({"error": f"Error assembling audio: {str(e)}"}), 500
 
@@ -421,7 +476,6 @@ def download_project_audio(project_id):
 
 @app.route("/api/speak", methods=["POST"])
 def speak():
-    # Mantener compatibilidad con el modo "usar sin guardar" si se desea
     data = request.json
     text = data.get("text", "")
     voice = data.get("voice", "af_nicole")
@@ -432,16 +486,88 @@ def speak():
         return jsonify({"error": "No text provided"}), 400
 
     try:
-        # Soporte para mezcla de voces
-        voice_obj = manager._get_voice_style(voice)
-        
-        samples, sample_rate = manager.kokoro.create(text, voice=voice_obj, speed=speed, lang=lang)
+        if manager.catalan_engine.is_catalan_voice(voice):
+            samples, sample_rate = manager.catalan_engine.generate(text, voice_id=voice, speed=speed)
+        else:
+            voice_obj = manager._get_voice_style(voice)
+            samples, sample_rate = manager.kokoro.create(text, voice=voice_obj, speed=speed, lang=lang)
+            
         buffer = io.BytesIO()
         sf.write(buffer, samples, sample_rate, format='WAV')
         buffer.seek(0)
         return send_file(buffer, mimetype="audio/wav")
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/converter/add", methods=["POST"])
+def converter_add():
+    if 'files' not in request.files:
+        return jsonify({"error": "No files provided"}), 400
+        
+    output_format = request.form.get("output_format", "mp3")
+    bitrate = request.form.get("bitrate", "192k")
+    
+    tasks = []
+    for file in request.files.getlist("files"):
+        if file.filename == '': continue
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        task_id = converter_manager.add_task(filepath, file.filename, output_format, bitrate)
+        tasks.append(task_id)
+        
+    return jsonify({"status": "queued", "tasks": tasks})
+
+@app.route("/api/converter/status", methods=["GET"])
+def converter_status():
+    tasks = converter_manager.get_all_tasks()
+    return jsonify({
+        "tasks": tasks,
+        "is_running": converter_manager.is_running
+    })
+
+@app.route("/api/converter/start", methods=["POST"])
+def converter_start():
+    converter_manager.is_running = True
+    return jsonify({"status": "running"})
+
+@app.route("/api/converter/stop", methods=["POST"])
+def converter_stop():
+    converter_manager.is_running = False
+    return jsonify({"status": "paused"})
+
+@app.route("/api/converter/download/<task_id>", methods=["GET"])
+def converter_download(task_id):
+    status = converter_manager.get_status(task_id)
+    if not status or status["status"] != "completed":
+        return jsonify({"error": "Not found or not completed"}), 404
+        
+    task_dir = os.path.join(converter_manager.conversions_dir, task_id)
+    output_path = os.path.join(task_dir, status["output_path"])
+    
+    if not os.path.exists(output_path):
+        return jsonify({"error": "File not found"}), 404
+        
+    ext = os.path.splitext(status["output_path"])[1].lower()
+    mime_type = "audio/wav"
+    if ext == ".mp3": mime_type = "audio/mpeg"
+    elif ext == ".ogg": mime_type = "audio/ogg"
+    elif ext == ".m4a": mime_type = "audio/mp4"
+    
+    return send_file(
+        output_path, 
+        as_attachment=True, 
+        download_name=status["output_path"], 
+        mimetype=mime_type
+    )
+
+@app.route("/api/converter/delete/<task_id>", methods=["DELETE"])
+def converter_delete(task_id):
+    success = converter_manager.delete_task(task_id)
+    if success:
+        return jsonify({"status": "deleted"})
+    return jsonify({"error": "Not found"}), 404
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

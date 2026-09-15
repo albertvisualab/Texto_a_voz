@@ -10,3 +10,4 @@ werkzeug
 EbookLib
 beautifulsoup4
 imageio-ffmpeg
+piper-tts

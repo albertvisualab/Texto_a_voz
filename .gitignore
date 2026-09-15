@@ -6,13 +6,18 @@ venv/
 .env
 
 # Modelos (demasiado pesados para GitHub)
+models/
 *.onnx
 *.bin
 
 # Temporales de la app
 uploads/
+conversions/
 *.wav
 *.mp3
+*.m4a
+*.ogg
+*.opus
 # Datos de proyectos (locales)
 projects/
 *.wav.json
